@@ -4,6 +4,11 @@
 #include "config.h"
 #include "stars.h"
 #include "obstacles.h"
+#include "characters.h"
+
+static GRRLIB_texImg *tex_idle = NULL;
+static GRRLIB_texImg *tex_thrust = NULL;
+static int sprites_loaded = 0;
 
 static u32 make_color(u8 r, u8 g, u8 b, u8 a) {
     return RGBA(r, g, b, a);
@@ -15,6 +20,20 @@ static u32 theme_color(ThemeColor c, u8 alpha) {
 
 void renderer_init(void) {
     GRRLIB_Init();
+}
+
+void renderer_load_sprites(const CharacterData *ch) {
+    if (tex_idle) { GRRLIB_FreeTexture(tex_idle); tex_idle = NULL; }
+    if (tex_thrust) { GRRLIB_FreeTexture(tex_thrust); tex_thrust = NULL; }
+    sprites_loaded = 0;
+
+    if (!ch) return;
+
+    tex_idle = GRRLIB_LoadTextureFromFile(ch->sprite_idle);
+    tex_thrust = GRRLIB_LoadTextureFromFile(ch->sprite_thrust);
+    if (tex_idle && tex_thrust) {
+        sprites_loaded = 1;
+    }
 }
 
 void renderer_draw_background(void) {
@@ -332,9 +351,17 @@ void renderer_draw_obstacles(void) {
     }
 }
 
-void renderer_draw_player(const Player *p) {
-    u32 white = RGBA(255, 255, 255, 255);
-    GRRLIB_Rectangle(p->x, p->y, (f32)p->width, (f32)p->height, white, true);
+void renderer_draw_player(const Player *p, int thrust_active) {
+    if (sprites_loaded && tex_idle && tex_thrust) {
+        GRRLIB_texImg *tex = thrust_active ? tex_thrust : tex_idle;
+        const CharacterData *ch = characters_get_current();
+        float dx = p->x - (tex->w - ch->hitbox_w) / 2.0f;
+        float dy = p->y - (tex->h - ch->hitbox_h) / 2.0f;
+        GRRLIB_DrawImg(dx, dy, tex, 0, 1, 1, RGBA(255, 255, 255, 255));
+    } else {
+        u32 white = RGBA(255, 255, 255, 255);
+        GRRLIB_Rectangle(p->x, p->y, (f32)p->width, (f32)p->height, white, true);
+    }
 }
 
 void renderer_draw_score(int score) {
@@ -358,6 +385,10 @@ void renderer_draw_score(int score) {
     }
     buf[len] = '\0';
     GRRLIB_PrintfSystemFont(100, 10, buf, 20, RGBA(255, 255, 255, 255));
+}
+
+void renderer_draw_character_name(const char *name) {
+    GRRLIB_PrintfSystemFont(20, 30, name, 16, RGBA(180, 180, 180, 255));
 }
 
 void renderer_finish(void) {

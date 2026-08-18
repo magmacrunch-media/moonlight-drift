@@ -11,6 +11,7 @@
 #include "stars.h"
 #include "scoring.h"
 #include "renderer.h"
+#include "characters.h"
 
 typedef enum {
     STATE_TITLE,
@@ -32,6 +33,13 @@ static void draw_centered_text(int y, const char *text, unsigned int size, u32 c
     GRRLIB_PrintfSystemFont(x, y, text, size, color);
 }
 
+static void apply_character(Player *p) {
+    const CharacterData *ch = characters_get_current();
+    player_set_physics(p, ch->thrust, ch->gravity, ch->maxVelocity);
+    player_set_hitbox(p, ch->hitbox_w, ch->hitbox_h, ch->hitbox_offset_x, ch->hitbox_offset_y);
+    renderer_load_sprites(ch);
+}
+
 int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
@@ -42,9 +50,11 @@ int main(int argc, char **argv) {
     obstacles_init();
     stars_init();
     scoring_init();
+    characters_init();
 
     Player player;
     player_init(&player);
+    apply_character(&player);
 
     u32 white = RGBA(255, 255, 255, 255);
     u32 dim   = RGBA(180, 180, 180, 255);
@@ -57,8 +67,23 @@ int main(int argc, char **argv) {
         switch (state) {
             case STATE_TITLE:
                 renderer_draw_background();
-                draw_centered_text(SCREEN_HEIGHT / 2 - 40, "MOONLIGHT DRIFT", 30, white);
-                draw_centered_text(SCREEN_HEIGHT / 2 + 10, "Press A to start", 20, dim);
+                draw_centered_text(SCREEN_HEIGHT / 2 - 60, "MOONLIGHT DRIFT", 30, white);
+                renderer_draw_character_name(characters_get_current()->name);
+                draw_centered_text(SCREEN_HEIGHT / 2 + 10, "D-Pad: choose character", 14, dim);
+                draw_centered_text(SCREEN_HEIGHT / 2 + 30, "Press A to start", 20, dim);
+
+                if (input_left_pressed()) {
+                    int idx = characters_get_current_index() - 1;
+                    if (idx < 0) idx = characters_get_count() - 1;
+                    characters_set_current(idx);
+                    apply_character(&player);
+                }
+                if (input_right_pressed()) {
+                    int idx = characters_get_current_index() + 1;
+                    if (idx >= characters_get_count()) idx = 0;
+                    characters_set_current(idx);
+                    apply_character(&player);
+                }
                 if (input_start_pressed()) {
                     state = STATE_READY;
                 }
@@ -75,6 +100,7 @@ int main(int argc, char **argv) {
                     scoring_reset();
                     obstacles_init();
                     player_init(&player);
+                    apply_character(&player);
                 }
                 break;
 
@@ -112,7 +138,7 @@ int main(int argc, char **argv) {
                 renderer_draw_background();
                 renderer_draw_stars();
                 renderer_draw_obstacles();
-                renderer_draw_player(&player);
+                renderer_draw_player(&player, input_thrust_pressed());
                 renderer_draw_score(scoring_get());
                 break;
 
@@ -152,6 +178,7 @@ int main(int argc, char **argv) {
                     scoring_reset();
                     obstacles_init();
                     player_init(&player);
+                    apply_character(&player);
                 }
                 break;
         }

@@ -20,6 +20,13 @@ void player_set_physics(Player *p, float thrust, float gravity, float maxVel) {
     p->maxVelocity = maxVel;
 }
 
+void player_set_hitbox(Player *p, int w, int h, int ox, int oy) {
+    p->width = w;
+    p->height = h;
+    p->offsetX = ox;
+    p->offsetY = oy;
+}
+
 int player_update(Player *p, int thrust_active, int canvas_height) {
     if (thrust_active) {
         p->velocity += p->thrust;

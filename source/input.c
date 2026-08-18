@@ -24,3 +24,13 @@ int input_start_pressed(void) {
     u32 pressed = WPAD_ButtonsDown(0);
     return (pressed & WPAD_BUTTON_A) != 0;
 }
+
+int input_left_pressed(void) {
+    u32 pressed = WPAD_ButtonsDown(0);
+    return (pressed & WPAD_BUTTON_LEFT) != 0;
+}
+
+int input_right_pressed(void) {
+    u32 pressed = WPAD_ButtonsDown(0);
+    return (pressed & WPAD_BUTTON_RIGHT) != 0;
+}
