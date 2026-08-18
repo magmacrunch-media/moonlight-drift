@@ -7,7 +7,7 @@
 #define CANVAS_WIDTH        640
 #define CANVAS_HEIGHT       480
 
-#define GAP                 120
+#define GAP                 180
 #define OBSTACLE_WIDTH      60
 #define OBSTACLE_SPEED      3
 #define OBSTACLE_SPAWN_INTERVAL  120
@@ -19,7 +19,8 @@
 #define DEFAULT_GRAVITY     0.4f
 #define DEFAULT_MAX_VELOCITY 10.0f
 
-#define MIN_OBSTACLE_HEIGHT 35
+#define FLAME_HEIGHT        15
+#define MIN_OBSTACLE_HEIGHT 50
 #define MAX_OBSTACLE_HEIGHT (SCREEN_HEIGHT - GAP - MIN_OBSTACLE_HEIGHT)
 
 #define THEME_CHANGE_INTERVAL   10

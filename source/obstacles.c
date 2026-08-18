@@ -44,71 +44,79 @@ void obstacles_update(int canvas_width) {
     }
 }
 
-static float get_obstacle_width_at_y(Obstacle *o, int y_pos, int total_height) {
-    float progress = (float)y_pos / (float)total_height;
-    float min_w;
-    float taper;
+static int check_collision_style(Obstacle *o, int player_left, int player_right,
+                                  int player_top, int player_bottom) {
+    float center_x = o->x + OBSTACLE_WIDTH / 2.0f;
 
-    switch (o->style_index) {
-        case 0: min_w = 22.0f; taper = 0.65f; break;
-        case 1: min_w = 24.0f; taper = 0.60f; break;
-        default: min_w = 20.0f; taper = 0.65f; break;
+    if (player_right <= o->x || player_left >= o->x + OBSTACLE_WIDTH) return 0;
+
+    if (player_top < o->top_height) {
+        int y_pos = player_top;
+        if (y_pos < 0) y_pos = 0;
+        if (y_pos > o->top_height - 1) y_pos = o->top_height - 1;
+        float progress = (float)y_pos / (float)o->top_height;
+        float w, offset;
+
+        switch (o->style_index) {
+            case 0:
+                w = fmaxf(22.0f, OBSTACLE_WIDTH * (1.0f - progress * 0.65f));
+                offset = sinf(o->seed * 100.0f + y_pos * 0.1f) * 6.0f * o->asymmetry;
+                break;
+            case 1:
+                w = fmaxf(24.0f, OBSTACLE_WIDTH * (1.0f - progress * 0.6f));
+                offset = sinf(o->seed * 50.0f + y_pos * 0.2f) * 4.0f;
+                break;
+            default:
+                w = fmaxf(20.0f, OBSTACLE_WIDTH * (1.0f - progress * 0.65f));
+                offset = sinf(o->seed * 200.0f + y_pos * 0.5f) * 8.0f * o->roughness;
+                break;
+        }
+
+        float left = center_x - w / 2.0f + offset;
+        float right = center_x + w / 2.0f + offset;
+        if (player_right > left && player_left < right) return 1;
     }
 
-    float width = min_w + (OBSTACLE_WIDTH - min_w) * (1.0f - progress * taper);
-    return width;
-}
+    if (player_bottom > o->bottom_y) {
+        float bottom_height = 500.0f;
+        int y_pos = player_bottom - o->bottom_y;
+        if (y_pos > (int)bottom_height) y_pos = (int)bottom_height;
+        float progress = (float)y_pos / bottom_height;
+        float w, offset;
 
-static float get_obstacle_offset(Obstacle *o, int y_pos) {
-    switch (o->style_index) {
-        case 0: return sinf(o->seed * 100.0f + y_pos * 0.1f) * 6.0f * o->asymmetry;
-        case 1: return sinf(o->seed * 50.0f + y_pos * 0.2f) * 4.0f;
-        default: return sinf(o->seed * 200.0f + y_pos * 0.5f) * 8.0f * o->roughness;
+        switch (o->style_index) {
+            case 0:
+                w = fminf(OBSTACLE_WIDTH, 22.0f + OBSTACLE_WIDTH * progress * 0.65f);
+                offset = sinf(o->seed * 100.0f + y_pos * 0.1f) * 6.0f * o->asymmetry;
+                break;
+            case 1:
+                w = fminf(OBSTACLE_WIDTH, 24.0f + OBSTACLE_WIDTH * progress * 0.6f);
+                offset = sinf(o->seed * 50.0f + y_pos * 0.2f) * 4.0f;
+                break;
+            default:
+                w = fminf(OBSTACLE_WIDTH, 20.0f + OBSTACLE_WIDTH * progress * 0.65f);
+                offset = sinf(o->seed * 200.0f + y_pos * 0.5f) * 8.0f * o->roughness;
+                break;
+        }
+
+        float left = center_x - w / 2.0f + offset;
+        float right = center_x + w / 2.0f + offset;
+        if (player_right > left && player_left < right) return 1;
     }
+
+    return 0;
 }
 
 int obstacles_check_collision(int player_x, int player_y, int player_w, int player_h) {
+    int player_top = player_y;
+    int player_bottom = player_y + player_h - FLAME_HEIGHT;
+    int player_left = player_x;
+    int player_right = player_x + player_w;
+
     for (int i = 0; i < obstacle_count; i++) {
         Obstacle *o = &obstacles[i];
-        float ox_right = o->x + OBSTACLE_WIDTH;
-
-        if (player_x + player_w < o->x || player_x > ox_right) continue;
-
-        int total_h = o->bottom_y - o->top_height;
-
-        int player_bottom = player_y + player_h;
-        int check_y_top = player_y - o->top_height;
-        int check_y_bot = player_bottom - o->top_height;
-
-        if (check_y_top >= 0 && check_y_top <= total_h) {
-            float w = get_obstacle_width_at_y(o, check_y_top, total_h);
-            float offset = get_obstacle_offset(o, check_y_top);
-            float center_x = o->x + OBSTACLE_WIDTH / 2.0f;
-            float left = center_x - w / 2.0f + offset;
-            float right = center_x + w / 2.0f + offset;
-            if (player_x < right && player_x + player_w > left) return 1;
-        }
-
-        if (check_y_bot >= 0 && check_y_bot <= total_h) {
-            float w = get_obstacle_width_at_y(o, check_y_bot, total_h);
-            float offset = get_obstacle_offset(o, check_y_bot);
-            float center_x = o->x + OBSTACLE_WIDTH / 2.0f;
-            float left = center_x - w / 2.0f + offset;
-            float right = center_x + w / 2.0f + offset;
-            if (player_x < right && player_x + player_w > left) return 1;
-        }
-
-        if (player_y < o->top_height && player_bottom > o->top_height) {
-            float center_x = o->x + OBSTACLE_WIDTH / 2.0f;
-            float left = center_x - OBSTACLE_WIDTH / 2.0f;
-            float right = center_x + OBSTACLE_WIDTH / 2.0f;
-            if (player_x < right && player_x + player_w > left) return 1;
-        }
-        if (player_y < o->bottom_y && player_bottom > o->bottom_y) {
-            float center_x = o->x + OBSTACLE_WIDTH / 2.0f;
-            float left = center_x - OBSTACLE_WIDTH / 2.0f;
-            float right = center_x + OBSTACLE_WIDTH / 2.0f;
-            if (player_x < right && player_x + player_w > left) return 1;
+        if (check_collision_style(o, player_left, player_right, player_top, player_bottom)) {
+            return 1;
         }
     }
     return 0;
