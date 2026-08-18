@@ -24,6 +24,46 @@ void scoring_increment(void) {
     current_score++;
 }
 
+int scoring_add_entry(const char *initials, int score) {
+    if (score <= 0) return -1;
+
+    int rank = score_count;
+    for (int i = 0; i < score_count; i++) {
+        if (score > scores[i].score) {
+            rank = i;
+            break;
+        }
+    }
+
+    if (rank >= MAX_SCORES) return -1;
+
+    for (int i = score_count; i > rank; i--) {
+        if (i < MAX_SCORES) {
+            scores[i] = scores[i - 1];
+        }
+    }
+
+    strncpy(scores[rank].initials, initials, 3);
+    scores[rank].initials[3] = '\0';
+    scores[rank].score = score;
+
+    if (score_count < MAX_SCORES) score_count++;
+
+    scoring_save();
+    return rank;
+}
+
+int scoring_get_count(void) {
+    return score_count;
+}
+
+const ScoreEntry *scoring_get_entry(int index) {
+    if (index >= 0 && index < score_count) {
+        return &scores[index];
+    }
+    return NULL;
+}
+
 void scoring_save(void) {
     FILE *f = fopen(SCORES_PATH, "w");
     if (!f) return;

@@ -6,6 +6,9 @@
 #include "obstacles.h"
 #include "characters.h"
 
+#include "PressStart2P.h"
+
+GRRLIB_ttfFont *ttf_font = NULL;
 static GRRLIB_texImg *tex_idle = NULL;
 static GRRLIB_texImg *tex_thrust = NULL;
 static int sprites_loaded = 0;
@@ -20,6 +23,7 @@ static u32 theme_color(ThemeColor c, u8 alpha) {
 
 void renderer_init(void) {
     GRRLIB_Init();
+    ttf_font = GRRLIB_LoadTTF(PressStart2P, PressStart2P_size);
 }
 
 void renderer_load_sprites(const CharacterData *ch) {
@@ -365,8 +369,6 @@ void renderer_draw_player(const Player *p, int thrust_active) {
 }
 
 void renderer_draw_score(int score) {
-    GRRLIB_PrintfSystemFont(20, 10, "SCORE:", 20, RGBA(255, 255, 255, 255));
-
     char buf[16];
     int tmp = score;
     int len = 0;
@@ -384,7 +386,8 @@ void renderer_draw_score(int score) {
         }
     }
     buf[len] = '\0';
-    GRRLIB_PrintfSystemFont(100, 10, buf, 20, RGBA(255, 255, 255, 255));
+    GRRLIB_PrintfTTF(20, 10, ttf_font, "SCORE:", 14, RGBA(255, 255, 255, 255));
+    GRRLIB_PrintfTTF(120, 10, ttf_font, buf, 14, RGBA(255, 255, 255, 255));
 }
 
 void renderer_draw_character_name(const char *name) {
