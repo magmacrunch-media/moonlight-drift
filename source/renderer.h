@@ -10,5 +10,6 @@ void renderer_draw_stars(void);
 void renderer_draw_obstacles(void);
 void renderer_draw_player(const Player *p);
 void renderer_draw_score(int score);
+void renderer_finish(void);
 
 #endif

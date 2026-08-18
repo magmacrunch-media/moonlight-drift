@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <grrlib.h>
 #include "config.h"
 #include "player.h"
 #include "input.h"
@@ -22,18 +23,31 @@ static GameState state = STATE_TITLE;
 static int frame_count = 0;
 static int game_running = 0;
 
+static void draw_centered_text(int y, const char *text, unsigned int size, u32 color) {
+    int len = 0;
+    for (const char *p = text; *p; p++) len++;
+    int text_width = len * (int)(size * 0.6f);
+    int x = (SCREEN_WIDTH - text_width) / 2;
+    if (x < 0) x = 0;
+    GRRLIB_PrintfSystemFont(x, y, text, size, color);
+}
+
 int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
     srand(time(NULL));
 
     renderer_init();
     input_init();
-    player_init(NULL);
     obstacles_init();
     stars_init();
     scoring_init();
 
     Player player;
     player_init(&player);
+
+    u32 white = RGBA(255, 255, 255, 255);
+    u32 dim   = RGBA(180, 180, 180, 255);
 
     while (1) {
         input_scan();
@@ -43,8 +57,8 @@ int main(int argc, char **argv) {
         switch (state) {
             case STATE_TITLE:
                 renderer_draw_background();
-                printf("\x1b[12;25H MOONLIGHT DRIFT");
-                printf("\x1b[14;28H Press A to start");
+                draw_centered_text(SCREEN_HEIGHT / 2 - 40, "MOONLIGHT DRIFT", 30, white);
+                draw_centered_text(SCREEN_HEIGHT / 2 + 10, "Press A to start", 20, dim);
                 if (input_start_pressed()) {
                     state = STATE_READY;
                 }
@@ -52,8 +66,8 @@ int main(int argc, char **argv) {
 
             case STATE_READY:
                 renderer_draw_background();
-                printf("\x1b[12;28H Hold A to thrust");
-                printf("\x1b[14;28H Dodge obstacles!");
+                draw_centered_text(SCREEN_HEIGHT / 2 - 20, "Hold A to thrust", 20, white);
+                draw_centered_text(SCREEN_HEIGHT / 2 + 10, "Dodge obstacles!", 20, dim);
                 if (input_start_pressed()) {
                     state = STATE_PLAYING;
                     game_running = 1;
@@ -94,8 +108,8 @@ int main(int argc, char **argv) {
                     scoring_increment();
                 }
 
-                renderer_draw_background();
                 stars_update();
+                renderer_draw_background();
                 renderer_draw_stars();
                 renderer_draw_obstacles();
                 renderer_draw_player(&player);
@@ -104,9 +118,33 @@ int main(int argc, char **argv) {
 
             case STATE_GAME_OVER:
                 renderer_draw_background();
-                printf("\x1b[12;28H GAME OVER");
-                printf("\x1b[14;24H Score: %d", scoring_get());
-                printf("\x1b[16;24H Press A to retry");
+                draw_centered_text(SCREEN_HEIGHT / 2 - 40, "GAME OVER", 30, white);
+
+                {
+                    char score_buf[32];
+                    int sc = scoring_get();
+                    int len = 0;
+                    if (sc == 0) {
+                        score_buf[len++] = '0';
+                    } else {
+                        char rev[16];
+                        int rlen = 0;
+                        while (sc > 0) {
+                            rev[rlen++] = '0' + (sc % 10);
+                            sc /= 10;
+                        }
+                        for (int i = rlen - 1; i >= 0; i--) {
+                            score_buf[len++] = rev[i];
+                        }
+                    }
+                    score_buf[len++] = ' ';
+                    score_buf[len++] = 'p';
+                    score_buf[len++] = 't';
+                    score_buf[len] = '\0';
+                    draw_centered_text(SCREEN_HEIGHT / 2 + 0, score_buf, 20, dim);
+                }
+
+                draw_centered_text(SCREEN_HEIGHT / 2 + 30, "Press A to retry", 20, dim);
                 if (input_start_pressed()) {
                     state = STATE_PLAYING;
                     game_running = 1;
@@ -118,7 +156,7 @@ int main(int argc, char **argv) {
                 break;
         }
 
-        VIDEO_WaitVSync();
+        renderer_finish();
     }
 
     return 0;
