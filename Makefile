@@ -76,9 +76,17 @@ deploy: $(BUILD)
 	@cp $(BUILD)/$(TARGET).dol $(CURDIR)/sdcard/apps/$(TARGET)/boot.dol
 	@cp $(CURDIR)/meta.xml $(CURDIR)/sdcard/apps/$(TARGET)/meta.xml
 	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)/sprites
-	@cp $(CURDIR)/sprites/*.png $(CURDIR)/sdcard/apps/$(TARGET)/sprites/
 	@echo "Deployed to sdcard/apps/$(TARGET)/"
-	@echo "  boot.dol, meta.xml, sprites/ ($(words $(wildcard $(CURDIR)/sprites/*.png)) PNGs)"
+	@echo "  boot.dol, meta.xml"
+# sprites/ is deliberately not in git, so a fresh clone has none. Warn rather
+# than fail the deploy -- the game runs without them, just with placeholder art.
+ifeq ($(wildcard $(CURDIR)/sprites/*.png),)
+	@echo "  WARNING: sprites/ is empty -- characters will draw as white boxes."
+	@echo "  Copy the PNGs into sprites/ before deploying."
+else
+	@cp $(CURDIR)/sprites/*.png $(CURDIR)/sdcard/apps/$(TARGET)/sprites/
+	@echo "  sprites/ ($(words $(wildcard $(CURDIR)/sprites/*.png)) PNGs)"
+endif
 	@echo "Copy sdcard/ contents to SD card root"
 
 #---------------------------------------------------------------------------------
