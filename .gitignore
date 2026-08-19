@@ -4,5 +4,4 @@ build/
 *.elf
 *.dol
 *.map
-sprites/
 .DS_Store
