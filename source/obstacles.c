@@ -7,9 +7,31 @@ static Obstacle obstacles[MAX_OBSTACLES];
 static int obstacle_count = 0;
 static int total_obstacles_created = 0;
 
+/* One palette is shared by every obstacle on screen and rotates every
+   THEME_CHANGE_INTERVAL spawns, so colours move in coherent runs. Generating a
+   fresh theme per obstacle (as this previously did) makes every column a
+   different random colour, which is the main reason the port did not read like
+   the arcade version. Mirrors getCurrentTheme() in js/obstacles.js. */
+static Theme current_theme;
+static int last_theme_change_count = 0;
+
+static float rand_unit(void) {
+    return (float)rand() / ((float)RAND_MAX + 1.0f);
+}
+
+static const Theme *theme_current(void) {
+    if (total_obstacles_created - last_theme_change_count >= THEME_CHANGE_INTERVAL) {
+        theme_generate(&current_theme);
+        last_theme_change_count = total_obstacles_created;
+    }
+    return &current_theme;
+}
+
 void obstacles_init(void) {
     obstacle_count = 0;
     total_obstacles_created = 0;
+    last_theme_change_count = 0;
+    theme_generate(&current_theme);
 }
 
 void obstacles_create(int canvas_width, int canvas_height) {
@@ -21,15 +43,20 @@ void obstacles_create(int canvas_width, int canvas_height) {
     o->bottom_y = o->top_height + GAP;
     o->passed = 0;
     o->style_index = rand() % 3;
-    o->seed = rand() % 1000;
-    o->roughness = 0.5f + (float)(rand() % 500) / 1000.0f;
-    o->asymmetry = (float)(rand() % 2000 - 1000) / 1000.0f;
-    o->milestone = (total_obstacles_created % THEME_CHANGE_INTERVAL == 0) ? total_obstacles_created : 0;
+    o->seed = rand_unit();
+    o->roughness = 0.5f + rand_unit() * 0.5f;
+    o->asymmetry = rand_unit() * 2.0f - 1.0f;
 
-    theme_generate(&o->theme);
+    total_obstacles_created++;
+
+    /* Count first, then test: the source game marks the 10th, 20th ... obstacle,
+       and uses the count itself as the label. */
+    o->milestone = (total_obstacles_created % THEME_CHANGE_INTERVAL == 0)
+                 ? total_obstacles_created : 0;
+
+    o->theme = *theme_current();
 
     obstacle_count++;
-    total_obstacles_created++;
 }
 
 void obstacles_update(int canvas_width) {

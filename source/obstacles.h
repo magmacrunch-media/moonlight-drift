@@ -11,7 +11,7 @@ typedef struct {
     int bottom_y;
     int passed;
     int style_index;
-    int seed;
+    float seed;   /* 0..1, matches Math.random() in the source game */
     float roughness;
     float asymmetry;
     int milestone;

@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
     (void)argv;
     srand(time(NULL));
 
-    renderer_init();
+    int init_status = renderer_init();
     input_init();
     obstacles_init();
     stars_init();
@@ -52,6 +52,26 @@ int main(int argc, char **argv) {
     Player player;
     player_init(&player);
     apply_character(&player);
+
+    /* A missing SD mount is the difference between real character art and white
+       placeholder boxes, so say so on screen rather than leaving it a mystery. */
+    if (init_status != 0) {
+        for (int i = 0; i < 240; i++) {
+            renderer_draw_background();
+            ui_draw_border();
+            ui_draw_centered_text(180, "STARTUP WARNING", 20, RGBA(255, 215, 0, 255));
+            if (!renderer_sd_mounted()) {
+                ui_draw_centered_text(220, "SD card not mounted", 14, RGBA(255, 255, 255, 255));
+                ui_draw_centered_text(245, "sprites/scores unavailable", 12, RGBA(160, 160, 160, 255));
+            }
+            if (!renderer_fonts_loaded()) {
+                ui_draw_centered_text(275, "font failed to load", 14, RGBA(255, 255, 255, 255));
+            }
+            renderer_finish();
+            input_scan();
+            if (input_start_pressed()) break;
+        }
+    }
 
     while (1) {
         input_scan();
@@ -172,12 +192,13 @@ int main(int argc, char **argv) {
                     if (selected_letter > 25) selected_letter = 0;
                 }
 
-                if (WPAD_ButtonsDown(0) & WPAD_BUTTON_UP) {
+                if (input_up_pressed()) {
                     initials[cursor_pos] = 'A' + selected_letter;
                 }
-                if (WPAD_ButtonsDown(0) & WPAD_BUTTON_DOWN) {
-                    cursor_pos++;
-                    if (cursor_pos < 3) {
+                if (input_down_pressed()) {
+                    initials[cursor_pos] = 'A' + selected_letter;
+                    if (cursor_pos < 2) {
+                        cursor_pos++;
                         selected_letter = initials[cursor_pos] - 'A';
                         if (selected_letter < 0 || selected_letter > 25) selected_letter = 0;
                     }
@@ -189,7 +210,7 @@ int main(int argc, char **argv) {
                     state = STATE_HIGH_SCORES;
                 }
 
-                if (WPAD_ButtonsDown(0) & WPAD_BUTTON_B) {
+                if (input_back_pressed()) {
                     initials[cursor_pos] = 'A' + selected_letter;
                     scoring_add_entry(initials, scoring_get());
                     state = STATE_HIGH_SCORES;
@@ -204,8 +225,8 @@ int main(int argc, char **argv) {
                 break;
         }
 
-        VIDEO_WaitVSync();
     }
 
+    renderer_shutdown();
     return 0;
 }

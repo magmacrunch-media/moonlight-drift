@@ -58,6 +58,8 @@ $(OUTPUT).elf: $(OFILES)
 else
 #---------------------------------------------------------------------------------
 
+.PHONY: $(BUILD) clean run deploy
+
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
@@ -73,7 +75,10 @@ deploy: $(BUILD)
 	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)
 	@cp $(BUILD)/$(TARGET).dol $(CURDIR)/sdcard/apps/$(TARGET)/boot.dol
 	@cp $(CURDIR)/meta.xml $(CURDIR)/sdcard/apps/$(TARGET)/meta.xml
+	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)/sprites
+	@cp $(CURDIR)/sprites/*.png $(CURDIR)/sdcard/apps/$(TARGET)/sprites/
 	@echo "Deployed to sdcard/apps/$(TARGET)/"
+	@echo "  boot.dol, meta.xml, sprites/ ($(words $(wildcard $(CURDIR)/sprites/*.png)) PNGs)"
 	@echo "Copy sdcard/ contents to SD card root"
 
 #---------------------------------------------------------------------------------

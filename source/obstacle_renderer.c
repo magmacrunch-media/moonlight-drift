@@ -1,8 +1,11 @@
 #include <grrlib.h>
 #include <math.h>
+#include <stdio.h>
 #include "obstacle_renderer.h"
 #include "obstacles.h"
 #include "config.h"
+#include "renderer.h"
+#include "ui_utils.h"
 
 static u32 theme_color(ThemeColor c, u8 alpha) {
     return RGBA(c.r, c.g, c.b, alpha);
@@ -266,6 +269,46 @@ static void draw_obstacle_bottom(Obstacle *o) {
     }
 }
 
+/* Port of drawMilestoneMarkers() in js/obstacles.js: a dashed complementary rule
+   through the gap, with the obstacle number in a bordered box. */
+static void draw_milestone_marker(Obstacle *o) {
+    if (!o->milestone) return;
+
+    ThemeColor comp_c = theme_complementary(&o->theme);
+    u32 comp = theme_color(comp_c, 255);
+    float cx = o->x + OBSTACLE_WIDTH / 2.0f;
+    int screen_h = renderer_screen_height();
+
+    /* 8-on/8-off dashes, drawn manually since GX has no line-dash state. */
+    for (int y = 0; y < screen_h; y += 16) {
+        GRRLIB_Rectangle(cx - 2.0f, (f32)y, 4, 8, comp, true);
+    }
+
+    char text[16];
+    snprintf(text, sizeof(text), "%d", o->milestone);
+
+    int box_w = 80, box_h = 50;
+    float text_y = o->top_height + (o->bottom_y - o->top_height) / 2.0f;
+    float box_x = cx - box_w / 2.0f;
+    float box_y = text_y - box_h / 2.0f;
+
+    GRRLIB_Rectangle(box_x - 4, box_y - 4, box_w + 8, box_h + 8,
+                     RGBA(26, 26, 46, 255), true);
+    GRRLIB_Rectangle(box_x, box_y, box_w, box_h, RGBA(26, 26, 46, 230), true);
+    GRRLIB_Rectangle(box_x - 2, box_y - 2, box_w + 4, box_h + 4, comp, false);
+    GRRLIB_Rectangle(box_x + 2, box_y + 2, box_w - 4, box_h - 4,
+                     theme_color(o->theme.secondary, 255), false);
+
+    if (ttf_font) {
+        unsigned int size = 20;
+        u32 tw = GRRLIB_WidthTTF(ttf_font, text, size);
+        float tx = cx - tw / 2.0f;
+        float ty = text_y - size / 2.0f;
+        GRRLIB_PrintfTTF(tx + 2, ty + 2, ttf_font, text, size, RGBA(0, 0, 0, 255));
+        GRRLIB_PrintfTTF(tx, ty, ttf_font, text, size, comp);
+    }
+}
+
 void obstacle_draw_all(void) {
     Obstacle *o;
     for (int i = 0; i < obstacles_get_count(); i++) {
@@ -275,25 +318,30 @@ void obstacle_draw_all(void) {
         draw_obstacle_top(o);
         draw_obstacle_bottom(o);
 
-        if ((int)(o->seed * 100) % 100 < 8) {
+        /* Port of drawSparkle() in js/obstacles.js. JS `%` on floats is fmod,
+           so seed*200 % 1 is the fractional part -- integer arithmetic here
+           collapses it to a constant. */
+        if (fmodf(o->seed * 100.0f, 100.0f) < 8.0f) {
             float sx = o->x + o->seed * OBSTACLE_WIDTH;
             float sy;
-            if (o->seed * 100 < 50) {
-                sy = o->seed * 200 - (int)(o->seed * 200);
-                if (sy < 0) sy = -sy;
-                sy *= o->top_height;
+            if (o->seed * 100.0f < 50.0f) {
+                sy = fmodf(o->seed * 200.0f, 1.0f) * (float)o->top_height;
             } else {
-                sy = o->bottom_y + (o->seed * 300 - (int)(o->seed * 300));
-                if (sy < 0) sy = -sy;
-                sy = o->bottom_y + sy * 100.0f / (float)CANVAS_HEIGHT;
-                if (sy >= CANVAS_HEIGHT) sy = CANVAS_HEIGHT - 4;
+                sy = (float)o->bottom_y + fmodf(o->seed * 300.0f, 1.0f) * 100.0f;
             }
             u32 wc = RGBA(255, 255, 255, 255);
-            GRRLIB_Rectangle(sx, sy, 2, 2, wc, true);
-            GRRLIB_Rectangle(sx - 3, sy, 2, 2, wc, true);
-            GRRLIB_Rectangle(sx + 3, sy, 2, 2, wc, true);
-            GRRLIB_Rectangle(sx, sy - 3, 2, 2, wc, true);
-            GRRLIB_Rectangle(sx, sy + 3, 2, 2, wc, true);
+            GRRLIB_Rectangle(sx,        sy,        2, 2, wc, true);
+            GRRLIB_Rectangle(sx - 3.0f, sy,        2, 2, wc, true);
+            GRRLIB_Rectangle(sx + 3.0f, sy,        2, 2, wc, true);
+            GRRLIB_Rectangle(sx,        sy - 3.0f, 2, 2, wc, true);
+            GRRLIB_Rectangle(sx,        sy + 3.0f, 2, 2, wc, true);
         }
+    }
+
+    /* Second pass so markers sit above every obstacle, as in the web renderer
+       where drawMilestoneMarkers() runs after drawObstacles(). */
+    for (int i = 0; i < obstacles_get_count(); i++) {
+        obstacles_get(i, &o);
+        if (o) draw_milestone_marker(o);
     }
 }

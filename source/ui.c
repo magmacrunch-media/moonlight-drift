@@ -87,18 +87,22 @@ void ui_draw_initials(int cursor_pos, int selected_letter, const char *initials,
     snprintf(score_buf, sizeof(score_buf), "Score: %d", score);
     ui_draw_centered_text(140, score_buf, 16, WHITE);
 
+    /* Design-space geometry; ui_map_* projects it into the TV-safe area. */
     int box_w = 120;
-    int box_x = (SCREEN_WIDTH - box_w) / 2;
+    int box_x = (UI_DESIGN_WIDTH - box_w) / 2;
     int box_y = 190;
-    GRRLIB_Rectangle(box_x - 4, box_y - 4, box_w + 8, 50, CYAN, false);
-    GRRLIB_Rectangle(box_x, box_y, box_w, 42, RGBA(20, 20, 40, 255), true);
+    GRRLIB_Rectangle(ui_map_x(box_x - 4), ui_map_y(box_y - 4),
+                     ui_map_w(box_w + 8), ui_map_h(50), CYAN, false);
+    GRRLIB_Rectangle(ui_map_x(box_x), ui_map_y(box_y),
+                     ui_map_w(box_w), ui_map_h(42), RGBA(20, 20, 40, 255), true);
 
     for (int i = 0; i < 3; i++) {
         int lx = box_x + 15 + i * 35;
         char ch[2] = { initials[i], '\0' };
 
         if (i == cursor_pos) {
-            GRRLIB_Rectangle(lx - 4, box_y + 4, 30, 34, RGBA(0, 212, 255, 60), true);
+            GRRLIB_Rectangle(ui_map_x(lx - 4), ui_map_y(box_y + 4),
+                             ui_map_w(30), ui_map_h(34), RGBA(0, 212, 255, 60), true);
             ui_draw_text_shadow(lx + 2, box_y + 8, ch, 24, CYAN);
             char sel[2] = { 'A' + selected_letter, '\0' };
             ui_draw_text_shadow(lx + 2, box_y - 20, sel, 14, YELLOW);
@@ -107,9 +111,9 @@ void ui_draw_initials(int cursor_pos, int selected_letter, const char *initials,
         }
     }
 
-    ui_draw_centered_text(300, "D-Pad: change letter", 12, DIM);
-    ui_draw_centered_text(320, "A: next position", 12, DIM);
-    ui_draw_centered_text(340, "B: confirm & save", 12, DIM);
+    ui_draw_centered_text(300, "D-Pad L/R: letter", 12, DIM);
+    ui_draw_centered_text(320, "D-Pad Down: next", 12, DIM);
+    ui_draw_centered_text(340, "A or B: save", 12, DIM);
 
     renderer_finish();
 }
