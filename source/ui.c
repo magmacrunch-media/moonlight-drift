@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "ui.h"
-#include "magmanolia.h"
+#include "magnolia.h"
 #include "config.h"
 #include "obstacle_renderer.h"
 

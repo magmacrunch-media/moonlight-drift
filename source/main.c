@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include "magmanolia.h"
+#include "magnolia.h"
 #include "config.h"
 #include "obstacles.h"
 #include "obstacle_renderer.h"

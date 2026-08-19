@@ -11,9 +11,9 @@ include $(DEVKITPPC)/wii_rules
 #---------------------------------------------------------------------------------
 TARGET      := moonlight-drift
 BUILD       := build
-SOURCES     := source ../magmanolia/source ../magmanolia/font
+SOURCES     := source ../magnolia/source ../magnolia/font
 DATA        :=
-INCLUDES    := ../magmanolia ../magmanolia/source ../magmanolia/font source
+INCLUDES    := ../magnolia ../magnolia/source ../magnolia/font source
 
 CFLAGS      = -g -O2 -Wall $(MACHDEP) $(INCLUDE)
 CXXFLAGS    = $(CFLAGS)
