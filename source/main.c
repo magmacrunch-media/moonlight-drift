@@ -14,6 +14,12 @@
 
 static int frame_count = 0;
 
+/* The selector is a sub-mode of the title screen rather than an engine state:
+   character select is this game's concern, and magnolia only grows an
+   abstraction once a second game needs it. */
+static int char_select_open = 0;
+static int char_cursor = 0;
+
 static void apply_character(Player *p) {
     const CharacterData *ch = characters_get_current();
     player_set_physics(p, ch->thrust, ch->gravity, ch->maxVelocity);
@@ -49,19 +55,49 @@ static void show_startup_warning(void) {
     }
 }
 
-static void handle_character_select(Player *player) {
-    if (input_left_pressed()) {
-        int idx = characters_get_current_index() - 1;
-        if (idx < 0) idx = characters_get_count() - 1;
-        characters_set_current(idx);
-        apply_character(player);
+/* Grid navigation wraps on both axes: past the right edge moves to the next
+   row, past the last cell wraps to the first. */
+static void move_cursor(int dcol, int drow) {
+    int count = characters_get_count();
+    if (count <= 0) return;
+
+    if (dcol) {
+        char_cursor += dcol;
+        if (char_cursor < 0) char_cursor = count - 1;
+        if (char_cursor >= count) char_cursor = 0;
     }
-    if (input_right_pressed()) {
-        int idx = characters_get_current_index() + 1;
-        if (idx >= characters_get_count()) idx = 0;
-        characters_set_current(idx);
-        apply_character(player);
+    if (drow) {
+        int next = char_cursor + drow * CHAR_GRID_COLS;
+        if (next < 0) {
+            /* Wrap to the same column on the last populated row. */
+            int col = char_cursor % CHAR_GRID_COLS;
+            next = ((count - 1) / CHAR_GRID_COLS) * CHAR_GRID_COLS + col;
+            while (next >= count) next -= CHAR_GRID_COLS;
+        } else if (next >= count) {
+            next = char_cursor % CHAR_GRID_COLS;
+        }
+        char_cursor = next;
     }
+}
+
+/* Returns 1 once a character is chosen and the game should advance. */
+static int handle_character_select(Player *player) {
+    if (input_left_pressed())  move_cursor(-1, 0);
+    if (input_right_pressed()) move_cursor(+1, 0);
+    if (input_up_pressed())    move_cursor(0, -1);
+    if (input_down_pressed())  move_cursor(0, +1);
+
+    if (input_back_pressed()) {
+        char_select_open = 0;
+        return 0;
+    }
+    if (input_start_pressed()) {
+        characters_set_current(char_cursor);
+        apply_character(player);
+        char_select_open = 0;
+        return 1;
+    }
+    return 0;
 }
 
 static void update_playing(GameStateMachine *gs, Player *player) {
@@ -133,8 +169,11 @@ int main(int argc, char **argv) {
             switch (gamestate_current(&gs)) {
                 case GS_TITLE:
                     stars_update();
-                    ui_draw_title(characters_get_current_index());
-                    handle_character_select(&player);
+                    if (char_select_open) {
+                        ui_draw_character_select(char_cursor);
+                    } else {
+                        ui_draw_title(characters_get_current_index());
+                    }
                     break;
                 case GS_READY:
                     stars_update();
@@ -154,7 +193,17 @@ int main(int argc, char **argv) {
                     break;
             }
 
-            if (gamestate_update(&gs, scoring_get())) {
+            /* While the grid is open the engine must not act on A, the same
+               way the game withholds GS_PLAYING from it. */
+            if (char_select_open) {
+                if (handle_character_select(&player)) {
+                    gamestate_set(&gs, GS_READY);
+                }
+            } else if (gamestate_current(&gs) == GS_TITLE && input_start_pressed()) {
+                game_render_load_portraits();
+                char_cursor = characters_get_current_index();
+                char_select_open = 1;
+            } else if (gamestate_update(&gs, scoring_get())) {
                 start_run(&player);
             }
         } else {
@@ -163,6 +212,7 @@ int main(int argc, char **argv) {
     }
 
     game_render_free_sprites();
+    game_render_free_portraits();
     magnolia_shutdown();
     return 0;
 }

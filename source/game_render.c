@@ -4,9 +4,15 @@
 #include "game_render.h"
 #include "stars.h"
 
+#define MAX_PORTRAITS 32
+
 static Sprite spr_idle;
 static Sprite spr_thrust;
 static int sprites_ready = 0;
+
+static Sprite portraits[MAX_PORTRAITS];
+static int portrait_count = 0;
+static int portraits_ready = 0;
 
 void game_render_load_sprites(const CharacterData *ch) {
     game_render_free_sprites();
@@ -27,6 +33,59 @@ void game_render_free_sprites(void) {
     sprite_free(&spr_idle);
     sprite_free(&spr_thrust);
     sprites_ready = 0;
+}
+
+static void draw_portrait_progress(int done, int total) {
+    game_draw_background();
+    game_draw_stars();
+    ui_draw_border();
+    ui_draw_centered_text(210, "LOADING CHARACTERS", 16, RGBA(0, 212, 255, 255));
+
+    int bar_w = 400, bar_h = 14, bar_x = (UI_DESIGN_WIDTH - bar_w) / 2, bar_y = 250;
+    GRRLIB_Rectangle(ui_map_x(bar_x), ui_map_y(bar_y),
+                     ui_map_w(bar_w), ui_map_h(bar_h),
+                     RGBA(0, 212, 255, 255), false);
+    if (total > 0 && done > 0) {
+        int fill = (bar_w - 4) * done / total;
+        GRRLIB_Rectangle(ui_map_x(bar_x + 2), ui_map_y(bar_y + 2),
+                         ui_map_w(fill), ui_map_h(bar_h - 4),
+                         RGBA(0, 212, 255, 255), true);
+    }
+    renderer_finish();
+}
+
+void game_render_load_portraits(void) {
+    if (portraits_ready) return;
+
+    int total = characters_get_count();
+    if (total > MAX_PORTRAITS) total = MAX_PORTRAITS;
+    portrait_count = total;
+
+    for (int i = 0; i < total; i++) {
+        draw_portrait_progress(i, total);
+        const CharacterData *ch = characters_get_by_index(i);
+        if (!ch) continue;
+        sprite_load(&portraits[i], magnolia_asset_path(ch->sprite_idle),
+                    ch->sprite_origin_x, ch->sprite_origin_y);
+    }
+    portraits_ready = 1;
+}
+
+int game_render_portraits_ready(void) { return portraits_ready; }
+
+void game_render_free_portraits(void) {
+    for (int i = 0; i < portrait_count; i++) sprite_free(&portraits[i]);
+    portrait_count = 0;
+    portraits_ready = 0;
+}
+
+int game_portrait_valid(int index) {
+    return index >= 0 && index < portrait_count && sprite_valid(&portraits[index]);
+}
+
+void game_draw_portrait(int index, float x, float y, float scale) {
+    if (!game_portrait_valid(index)) return;
+    sprite_draw_scaled(&portraits[index], x, y, scale);
 }
 
 void game_draw_background(void) {
