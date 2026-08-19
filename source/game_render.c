@@ -101,23 +101,84 @@ void game_draw_background(void) {
     GRRLIB_Rectangle(0, (f32)(h - 2), (f32)w, 2, edge, true);
 }
 
+static void px(int x, int y, int w, int h, u32 c) {
+    GRRLIB_Rectangle((f32)x, (f32)y, (f32)w, (f32)h, c, true);
+}
+
+/* The seven STAR_PATTERNS from js/stars.js, drawn as literal pixel runs. The
+   chunky, deliberately low-res shapes are the whole point of the look. */
+static void draw_star_pattern(int pattern, int x, int y, u32 c) {
+    switch (pattern) {
+        case 0:                                    /* single pixel */
+            px(x, y, 1, 1, c);
+            break;
+        case 1:                                    /* 2x2 */
+            px(x, y, 2, 2, c);
+            break;
+        case 2:                                    /* 3x3 */
+            px(x, y, 3, 3, c);
+            break;
+        case 3:                                    /* plus */
+            px(x + 1, y, 1, 3, c);
+            px(x, y + 1, 3, 1, c);
+            break;
+        case 4:                                    /* large plus */
+            px(x + 2, y, 1, 5, c);
+            px(x, y + 2, 5, 1, c);
+            break;
+        case 5:                                    /* diamond */
+            px(x + 2, y,     1, 1, c);
+            px(x + 1, y + 1, 3, 1, c);
+            px(x,     y + 2, 5, 1, c);
+            px(x + 1, y + 3, 3, 1, c);
+            px(x + 2, y + 4, 1, 1, c);
+            break;
+        default:                                   /* 8-point star */
+            px(x + 2, y + 2, 2, 2, c);
+            px(x + 2, y,     2, 1, c);
+            px(x + 2, y + 5, 2, 1, c);
+            px(x,     y + 2, 1, 2, c);
+            px(x + 5, y + 2, 1, 2, c);
+            px(x + 1, y + 1, 1, 1, c);
+            px(x + 4, y + 1, 1, 1, c);
+            px(x + 1, y + 4, 1, 1, c);
+            px(x + 4, y + 4, 1, 1, c);
+            break;
+    }
+}
+
 void game_draw_stars(void) {
     Star *s;
     for (int i = 0; i < stars_get_count(); i++) {
         stars_get(i, &s);
         if (!s || !s->visible) continue;
 
-        u8 brightness = s->is_pulsing ? (s->pulse_state ? 255 : 128) : 255;
-        u32 color = RGBA(s->color_r, s->color_g, s->color_b, brightness);
+        /* Pulsing stars dim via alpha, matching the web's '88' suffix. */
+        u8 alpha = (s->is_pulsing && s->pulse_state == 0) ? 136 : 255;
+        draw_star_pattern(s->pattern, s->x, s->y,
+                          RGBA(s->color_r, s->color_g, s->color_b, alpha));
+    }
 
-        int size;
-        switch (s->pattern % 4) {
-            case 0:  size = 1; break;
-            case 1:  size = 2; break;
-            case 2:  size = 3; break;
-            default: size = 2; break;
+    ShootingStar *sh;
+    for (int i = 0; i < shooting_stars_get_count(); i++) {
+        shooting_stars_get(i, &sh);
+        if (!sh || sh->life <= 0) continue;
+
+        u8 r = sh->color_cyan ?   0 : 255;
+        u8 g = sh->color_cyan ? 212 : 255;
+        u8 b = 255;
+
+        for (int t = 0; t < 8; t++) {
+            int a = (int)((1.0f - (float)t / 8.0f) * 255.0f);
+            if (a <= 50) continue;
+            int tx = (int)(sh->x + t * 2.0f);
+            int ty = (int)(sh->y + t * 0.4f);
+            px(tx, ty, 2, 2, RGBA(r, g, b, (u8)a));
+            if (t < 3) {                            /* glow on the leading end */
+                px(tx - 1, ty, 1, 2, RGBA(r, g, b, 68));
+                px(tx + 2, ty, 1, 2, RGBA(r, g, b, 68));
+            }
         }
-        GRRLIB_Rectangle((f32)s->x, (f32)s->y, (f32)size, (f32)size, color, true);
     }
 }
 
@@ -130,10 +191,33 @@ void game_draw_player(const Player *p, int thrust_active) {
     }
 }
 
+/* SNES-style score plate, matching drawScoreOnCanvas() in the source game:
+   a blue-grey box with chunky light/dark borders and gold text outlined in
+   black. Drawn in design space so it holds position across video modes. */
 void game_draw_score(int score) {
     if (!ttf_font) return;
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d", score);
-    GRRLIB_PrintfTTF(20, 10, ttf_font, "SCORE:", 14, RGBA(255, 255, 255, 255));
-    GRRLIB_PrintfTTF(120, 10, ttf_font, buf, 14, RGBA(255, 255, 255, 255));
+
+    const int bx = 10, by = 10, bw = 180, bh = 50;
+    int x = ui_map_x(bx), y = ui_map_y(by);
+    int w = ui_map_w(bw), h = ui_map_h(bh);
+
+    GRRLIB_Rectangle(x, y, w, h, RGBA(0x3a, 0x44, 0x66, 255), true);
+    /* Two nested outlines stand in for the web's 3px and 2px strokes. */
+    GRRLIB_Rectangle(x, y, w, h, RGBA(0x6a, 0x7a, 0x9a, 255), false);
+    GRRLIB_Rectangle(x + 1, y + 1, w - 2, h - 2, RGBA(0x6a, 0x7a, 0x9a, 255), false);
+    GRRLIB_Rectangle(x + 4, y + 4, w - 8, h - 8, RGBA(0x2a, 0x3a, 0x5a, 255), false);
+
+    char buf[24];
+    snprintf(buf, sizeof(buf), "score: %d", score);
+
+    int tx = ui_map_x(bx + 15), ty = ui_map_y(by + 17);
+    unsigned int size = ui_map_size(14);
+    /* Black outline, drawn as four offsets, then the gold fill. */
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            if (dx == 0 && dy == 0) continue;
+            GRRLIB_PrintfTTF(tx + dx, ty + dy, ttf_font, buf, size, RGBA(0, 0, 0, 255));
+        }
+    }
+    GRRLIB_PrintfTTF(tx, ty, ttf_font, buf, size, RGBA(255, 215, 0, 255));
 }

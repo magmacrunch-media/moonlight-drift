@@ -2,7 +2,7 @@
 
 **Project:** Port [Moonlight Drift](https://magmacrunch.com/arcade/moonlight-drift/) (Jetman-style arcade game) to a homebrewed Nintendo Wii
 **Engine:** [magnolia](https://github.com/magmacrunchmedia/magnolia) `>= v0.2.0` — shared Wii game engine
-**Status:** Phase 7 — all 24 characters, 6×4 selector grid, TV-safe UI, high scores
+**Status:** Phases 1–7 complete — 24 characters, selector grid, audio, TV-safe UI, persistence
 
 ---
 
@@ -36,6 +36,7 @@ moonlight-drift-wii/
 │   ├── obstacles.c/.h           # Cave obstacle system (3 styles)
 │   ├── obstacle_renderer.c/.h   # Obstacle drawing + milestone markers
 │   ├── game_render.c/.h         # Player/starfield/score/kill-line drawing
+│   ├── settings.c/.h            # Character + mute preference on SD
 │   └── ui.c/.h                  # Title, selector grid, game over, initials, scores
 └── sprites/                     # Character PNGs (idle + thrust frames)
     ├── tardigrade-idle.png
@@ -100,7 +101,10 @@ SD Card/
     └── moonlight-drift/
         ├── boot.dol          # Copy from build/moonlight-drift.dol
         ├── meta.xml          # App metadata for Homebrew Channel
-        └── sprites/          # Character textures
+        ├── sprites/          # 48 character textures (128x128 PNG)
+        ├── audio/            # 4 PCM16 assets
+        ├── scores.json       # High scores (created at runtime)
+        └── settings.json     # Character + mute preference (created at runtime)
 ```
 
 ---
@@ -136,6 +140,8 @@ TITLE → READY → PLAYING → GAME OVER → INITIALS → HIGH SCORES → TITLE
 | Initials: change letter | D-pad Left/Right |
 | Initials: next position | D-pad Down |
 | Initials: save | B or A |
+| Mute / unmute | 1 (title screen) |
+| Credits | 2 (title screen) |
 | Exit to HBC | HOME |
 
 ---
@@ -183,6 +189,24 @@ on the player position — because the art sits differently in every export. The
 earlier 80×80 set cropped four thrust frames; 128×128 fits the widest character
 (115×102) with margin.
 
+## Audio
+
+Four assets converted from the web game's OGG sources to raw PCM16, 48kHz
+stereo — the format `magnolia`'s ASND-backed audio module expects:
+
+```bash
+ffmpeg -i in.ogg -f s16le -acodec pcm_s16le -ar 48000 -ac 2 out.pcm
+```
+
+| File | Length | Size |
+|------|--------|------|
+| `music.pcm` | 11.1s | 2.0 MB |
+| `crash.pcm` | 1.5s | 276 KB |
+| `button1.pcm` / `button2.pcm` | 0.2s / 0.8s | 40 KB / 150 KB |
+
+Clips are held in main RAM (~2.4MB). Converting the music to 32kHz mono would
+cut it to ~710KB if that ever matters.
+
 ## Obstacle Styles
 
 Three visual styles with matching tapered collision:
@@ -204,7 +228,7 @@ Three visual styles with matching tapered collision:
 | 3 — GRRLIB Renderer | ✅ | Pixel rendering with GRRLIB rectangles |
 | 4 — Characters | ✅ | Character system, sprites, selection |
 | 5 — UI & Polish | ✅ | Press Start 2P font, title screen, high scores, initials |
-| 6 — Audio | ⬜ | Sound effects + background music |
+| 6 — Audio | ✅ | PCM16 music loop + crash/button SFX, mute toggle |
 | 7 — All 24 Characters | ✅ | Full roster + 6×4 selector grid |
 
 ---
@@ -215,7 +239,7 @@ Three visual styles with matching tapered collision:
 |---------|------------|----------|
 | Rendering | HTML5 Canvas | GRRLIB (GX) |
 | Input | Keyboard | Wiimote (WPAD) |
-| Audio | Web Audio API (OGG) | libogc (PCM16) — planned |
+| Audio | Web Audio API (OGG) | libogc ASND (PCM16) |
 | Storage | WebSocket + localStorage | SD card (JSON) |
 | Resolution | 1280×720 | 640×480 |
 | Characters | Canvas `draw()` | Pre-rendered PNG sprites |

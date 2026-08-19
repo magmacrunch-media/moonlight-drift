@@ -10,7 +10,13 @@
 #include "obstacles.h"
 #include "obstacle_renderer.h"
 #include "game_render.h"
+#include "settings.h"
 #include "ui.h"
+
+/* SFX slots, in load order. */
+#define SFX_CRASH   0
+#define SFX_BUTTON1 1
+#define SFX_BUTTON2 2
 
 static int frame_count = 0;
 
@@ -19,6 +25,7 @@ static int frame_count = 0;
    abstraction once a second game needs it. */
 static int char_select_open = 0;
 static int char_cursor = 0;
+static int credits_open = 0;
 
 static void apply_character(Player *p) {
     const CharacterData *ch = characters_get_current();
@@ -29,6 +36,7 @@ static void apply_character(Player *p) {
 
 static void start_run(Player *p) {
     frame_count = 0;
+    shooting_stars_reset();
     scoring_reset();
     obstacles_init();
     player_init(p);
@@ -82,10 +90,13 @@ static void move_cursor(int dcol, int drow) {
 
 /* Returns 1 once a character is chosen and the game should advance. */
 static int handle_character_select(Player *player) {
+    int moved = input_left_pressed() || input_right_pressed()
+             || input_up_pressed()   || input_down_pressed();
     if (input_left_pressed())  move_cursor(-1, 0);
     if (input_right_pressed()) move_cursor(+1, 0);
     if (input_up_pressed())    move_cursor(0, -1);
     if (input_down_pressed())  move_cursor(0, +1);
+    if (moved) audio_play_sfx(SFX_BUTTON1);
 
     if (input_back_pressed()) {
         char_select_open = 0;
@@ -93,7 +104,9 @@ static int handle_character_select(Player *player) {
     }
     if (input_start_pressed()) {
         characters_set_current(char_cursor);
+        settings_set_character(char_cursor);
         apply_character(player);
+        audio_play_sfx(SFX_BUTTON2);
         char_select_open = 0;
         return 1;
     }
@@ -104,6 +117,7 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     frame_count++;
 
     if (player_update(player, input_thrust_pressed(), SCREEN_HEIGHT)) {
+        audio_play_sfx(SFX_CRASH);
         gamestate_end_run(gs, scoring_get());
         return;
     }
@@ -116,6 +130,7 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     if (obstacles_check_collision((int)player->x + player->offsetX,
                                   (int)player->y + player->offsetY,
                                   player->width, player->height)) {
+        audio_play_sfx(SFX_CRASH);
         gamestate_end_run(gs, scoring_get());
         return;
     }
@@ -124,6 +139,7 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     for (int i = 0; i < score_inc; i++) scoring_increment();
 
     stars_update();
+    shooting_stars_update(CANVAS_WIDTH, CANVAS_HEIGHT);
     game_draw_background();
     game_draw_stars();
     obstacle_draw_all();
@@ -150,6 +166,18 @@ int main(int argc, char **argv) {
     characters_init();
     ui_init();
 
+    audio_init();
+    audio_load_sfx(SFX_CRASH,   "audio/crash.pcm");
+    audio_load_sfx(SFX_BUTTON1, "audio/button1.pcm");
+    audio_load_sfx(SFX_BUTTON2, "audio/button2.pcm");
+
+    /* Restore the player's last character and mute preference before anything
+       reads them, so the title screen comes up in the state they left it. */
+    settings_load();
+    audio_set_muted(settings_get_muted());
+    characters_set_current(settings_get_character());
+    audio_play_music("audio/music.pcm");
+
     Player player;
     player_init(&player);
     apply_character(&player);
@@ -171,8 +199,11 @@ int main(int argc, char **argv) {
                     stars_update();
                     if (char_select_open) {
                         ui_draw_character_select(char_cursor);
+                    } else if (credits_open) {
+                        ui_draw_credits();
                     } else {
-                        ui_draw_title(characters_get_current_index());
+                        ui_draw_title(characters_get_current_index(),
+                                      audio_get_muted());
                     }
                     break;
                 case GS_READY:
@@ -199,6 +230,19 @@ int main(int argc, char **argv) {
                 if (handle_character_select(&player)) {
                     gamestate_set(&gs, GS_READY);
                 }
+            } else if (credits_open) {
+                if (input_back_pressed() || input_start_pressed()) {
+                    credits_open = 0;
+                    audio_play_sfx(SFX_BUTTON2);
+                }
+            } else if (gamestate_current(&gs) == GS_TITLE && input_button1_pressed()) {
+                int m = !audio_get_muted();
+                audio_set_muted(m);
+                settings_set_muted(m);
+                if (!m) audio_play_sfx(SFX_BUTTON2);
+            } else if (gamestate_current(&gs) == GS_TITLE && input_button2_pressed()) {
+                credits_open = 1;
+                audio_play_sfx(SFX_BUTTON2);
             } else if (gamestate_current(&gs) == GS_TITLE && input_start_pressed()) {
                 game_render_load_portraits();
                 char_cursor = characters_get_current_index();
@@ -213,6 +257,7 @@ int main(int argc, char **argv) {
 
     game_render_free_sprites();
     game_render_free_portraits();
+    audio_shutdown();
     magnolia_shutdown();
     return 0;
 }

@@ -78,14 +78,21 @@ deploy: $(BUILD)
 	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)/sprites
 	@echo "Deployed to sdcard/apps/$(TARGET)/"
 	@echo "  boot.dol, meta.xml"
-# sprites/ is deliberately not in git, so a fresh clone has none. Warn rather
-# than fail the deploy -- the game runs without them, just with placeholder art.
+# Assets are committed, but warn rather than fail if a checkout is partial --
+# the game runs without them, just with placeholder art and silence.
 ifeq ($(wildcard $(CURDIR)/sprites/*.png),)
 	@echo "  WARNING: sprites/ is empty -- characters will draw as white boxes."
 	@echo "  Copy the PNGs into sprites/ before deploying."
 else
 	@cp $(CURDIR)/sprites/*.png $(CURDIR)/sdcard/apps/$(TARGET)/sprites/
 	@echo "  sprites/ ($(words $(wildcard $(CURDIR)/sprites/*.png)) PNGs)"
+endif
+	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)/audio
+ifeq ($(wildcard $(CURDIR)/audio/*.pcm),)
+	@echo "  WARNING: audio/ is empty -- the game will run silently."
+else
+	@cp $(CURDIR)/audio/*.pcm $(CURDIR)/sdcard/apps/$(TARGET)/audio/
+	@echo "  audio/ ($(words $(wildcard $(CURDIR)/audio/*.pcm)) PCM files)"
 endif
 	@echo "Copy sdcard/ contents to SD card root"
 
