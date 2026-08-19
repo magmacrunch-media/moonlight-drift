@@ -5,8 +5,12 @@
 #include <time.h>
 #include "magnolia.h"
 #include "config.h"
+#include "characters.h"
+#include "player.h"
+#include "stars.h"
 #include "obstacles.h"
 #include "obstacle_renderer.h"
+#include "game_render.h"
 #include "ui.h"
 
 typedef enum {
@@ -33,7 +37,7 @@ static void apply_character(Player *p) {
     const CharacterData *ch = characters_get_current();
     player_set_physics(p, ch->thrust, ch->gravity, ch->maxVelocity);
     player_set_hitbox(p, ch->hitbox_w, ch->hitbox_h, ch->hitbox_offset_x, ch->hitbox_offset_y);
-    renderer_load_sprites(ch);
+    game_render_load_sprites(ch);
 }
 
 int main(int argc, char **argv) {
@@ -41,11 +45,16 @@ int main(int argc, char **argv) {
     (void)argv;
     srand(time(NULL));
 
-    int init_status = renderer_init();
+    const MagnoliaConfig cfg = {
+        .app_name     = APP_NAME,
+        .max_scores   = HIGH_SCORE_COUNT,
+        .overscan_pct = OVERSCAN_PCT
+    };
+    int init_status = magnolia_init(&cfg);
+
     input_init();
     obstacles_init();
     stars_init();
-    scoring_init();
     characters_init();
     ui_init();
 
@@ -57,14 +66,14 @@ int main(int argc, char **argv) {
        placeholder boxes, so say so on screen rather than leaving it a mystery. */
     if (init_status != 0) {
         for (int i = 0; i < 240; i++) {
-            renderer_draw_background();
+            game_draw_background();
             ui_draw_border();
             ui_draw_centered_text(180, "STARTUP WARNING", 20, RGBA(255, 215, 0, 255));
-            if (!renderer_sd_mounted()) {
+            if (!magnolia_sd_mounted()) {
                 ui_draw_centered_text(220, "SD card not mounted", 14, RGBA(255, 255, 255, 255));
                 ui_draw_centered_text(245, "sprites/scores unavailable", 12, RGBA(160, 160, 160, 255));
             }
-            if (!renderer_fonts_loaded()) {
+            if (!magnolia_fonts_loaded()) {
                 ui_draw_centered_text(275, "font failed to load", 14, RGBA(255, 255, 255, 255));
             }
             renderer_finish();
@@ -149,11 +158,11 @@ int main(int argc, char **argv) {
                 }
 
                 stars_update();
-                renderer_draw_background();
-                renderer_draw_stars();
+                game_draw_background();
+                game_draw_stars();
                 obstacle_draw_all();
-                renderer_draw_player(&player, input_thrust_pressed());
-                renderer_draw_score(scoring_get());
+                game_draw_player(&player, input_thrust_pressed());
+                game_draw_score(scoring_get());
                 renderer_finish();
                 break;
 
@@ -227,6 +236,7 @@ int main(int argc, char **argv) {
 
     }
 
-    renderer_shutdown();
+    game_render_free_sprites();
+    magnolia_shutdown();
     return 0;
 }

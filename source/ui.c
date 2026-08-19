@@ -4,6 +4,8 @@
 #include "ui.h"
 #include "magnolia.h"
 #include "config.h"
+#include "characters.h"
+#include "game_render.h"
 #include "obstacle_renderer.h"
 
 #define CYAN    RGBA(0, 212, 255, 255)
@@ -15,8 +17,8 @@ void ui_init(void) {
 }
 
 void ui_draw_title(int selected_char_index) {
-    renderer_draw_background();
-    renderer_draw_stars();
+    game_draw_background();
+    game_draw_stars();
     ui_draw_border();
 
     ui_draw_centered_text(80, "MOONLIGHT", 40, CYAN);
@@ -39,8 +41,8 @@ void ui_draw_title(int selected_char_index) {
 }
 
 void ui_draw_ready(void) {
-    renderer_draw_background();
-    renderer_draw_stars();
+    game_draw_background();
+    game_draw_stars();
     ui_draw_border();
 
     ui_draw_centered_text(180, "HOW TO PLAY", 24, CYAN);
@@ -53,8 +55,8 @@ void ui_draw_ready(void) {
 }
 
 void ui_draw_game_over(int score, int is_high_score, int rank) {
-    renderer_draw_background();
-    renderer_draw_stars();
+    game_draw_background();
+    game_draw_stars();
     ui_draw_border();
 
     ui_draw_centered_text(120, "GAME OVER", 36, WHITE);
@@ -77,8 +79,8 @@ void ui_draw_game_over(int score, int is_high_score, int rank) {
 }
 
 void ui_draw_initials(int cursor_pos, int selected_letter, const char *initials, int score) {
-    renderer_draw_background();
-    renderer_draw_stars();
+    game_draw_background();
+    game_draw_stars();
     ui_draw_border();
 
     ui_draw_centered_text(100, "ENTER YOUR INITIALS", 20, CYAN);
@@ -119,8 +121,8 @@ void ui_draw_initials(int cursor_pos, int selected_letter, const char *initials,
 }
 
 void ui_draw_high_scores(void) {
-    renderer_draw_background();
-    renderer_draw_stars();
+    game_draw_background();
+    game_draw_stars();
     ui_draw_border();
 
     ui_draw_centered_text(40, "HIGH SCORES", 24, CYAN);
