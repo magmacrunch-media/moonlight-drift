@@ -1,7 +1,7 @@
 # Moonlight Drift — Nintendo Wii Port
 
 **Project:** Port [Moonlight Drift](https://magmacrunch.com/arcade/moonlight-drift/) (Jetman-style arcade game) to a homebrewed Nintendo Wii
-**Engine:** [magnolia](https://github.com/magmacrunchmedia/magnolia) — shared Wii game engine
+**Engine:** [magnolia](https://github.com/magmacrunchmedia/magnolia) `>= v0.2.0` — shared Wii game engine
 **Status:** Phase 5 complete — styled title screen, high scores, initials entry, character selection with sprites
 
 ---
@@ -28,10 +28,14 @@ moonlight-drift-wii/
 ├── meta.xml                     # Homebrew Channel metadata
 ├── Moonlight-Drift-Wii.md       # Full design document
 ├── source/
-│   ├── main.c                   # Game state machine (6 states)
-│   ├── config.h                 # Game-specific constants
+│   ├── main.c                   # Entry point; drives magnolia's GameStateMachine
+│   ├── config.h                 # Game constants, APP_NAME, overscan
+│   ├── player.c/.h              # Jetman physics (thrust, gravity, boundary)
+│   ├── stars.c/.h               # Blinking starfield
+│   ├── characters.c/.h          # Character roster, hitboxes, sprite origins
 │   ├── obstacles.c/.h           # Cave obstacle system (3 styles)
-│   ├── obstacle_renderer.c/.h   # Obstacle drawing (style-specific)
+│   ├── obstacle_renderer.c/.h   # Obstacle drawing + milestone markers
+│   ├── game_render.c/.h         # Player/starfield/score/kill-line drawing
 │   └── ui.c/.h                  # Title, ready, game over, initials, high scores
 └── sprites/                     # Character PNGs (idle + thrust frames)
     ├── tardigrade-idle.png
@@ -43,10 +47,16 @@ moonlight-drift-wii/
     ├── vinny-bobarino-idle.png
     ├── vinny-bobarino-thrust.png
     ├── carl-spatski-idle.png
-    └── carl-spatski-thrust.png
+    ├── carl-spatski-thrust.png
+    ├── gangsta-beaver-idle.png
+    └── gangsta-beaver-thrust.png
 ```
 
-**Engine code** (rendering, input, scoring, stars, theme, player, characters, UI utils, font) lives in [magnolia](https://github.com/magmacrunchmedia/magnolia) and is compiled via `../magnolia` in the Makefile.
+**Engine code** (core bring-up, rendering, sprites, input, audio, scoring, game state, theme, UI utils, font) lives in [magnolia](https://github.com/magmacrunchmedia/magnolia) and is compiled via `../magnolia` in the Makefile.
+
+Player physics, the starfield and the character roster are **not** in the engine —
+they encode this game's decisions, so they live here. See magnolia's README for
+the rule on what belongs where.
 
 ---
 
@@ -55,7 +65,10 @@ moonlight-drift-wii/
 ### Prerequisites
 
 - devkitPro installed at `/opt/devkitpro/`
-- magnolia cloned at `../magnolia` relative to this project
+- magnolia `>= v0.2.0` cloned at `../magnolia` relative to this project.
+  There is no version pinning between the two repos yet, so if the engine has
+  moved on and the game stops building, check out the matching engine tag:
+  `git -C ../magnolia checkout v0.2.0`
 - SSH access to MC1 (Windows PC running WSL2 Ubuntu)
 
 ### Build Commands

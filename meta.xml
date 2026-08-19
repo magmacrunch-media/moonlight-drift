@@ -2,8 +2,8 @@
 <app version="1">
   <name>Moonlight Drift</name>
   <coder>magmacrunch media</coder>
-  <version>0.1.0</version>
-  <release_date>20260901000000</release_date>
+  <version>0.2.0</version>
+  <release_date>20260819000000</release_date>
   <short_description>Jetman-style obstacle avoidance</short_description>
   <long_description>Coast through space. Dodge obstacles. Ride the moon. 24 playable characters with unique physics.</long_description>
 </app>
