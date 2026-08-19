@@ -3,15 +3,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <grrlib.h>
+#include "magmanolia.h"
 #include "config.h"
-#include "player.h"
-#include "input.h"
 #include "obstacles.h"
-#include "stars.h"
-#include "scoring.h"
-#include "renderer.h"
-#include "characters.h"
+#include "obstacle_renderer.h"
 #include "ui.h"
 
 typedef enum {
@@ -136,7 +131,7 @@ int main(int argc, char **argv) {
                 stars_update();
                 renderer_draw_background();
                 renderer_draw_stars();
-                renderer_draw_obstacles();
+                obstacle_draw_all();
                 renderer_draw_player(&player, input_thrust_pressed());
                 renderer_draw_score(scoring_get());
                 renderer_finish();
