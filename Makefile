@@ -58,7 +58,7 @@ $(OUTPUT).elf: $(OFILES)
 else
 #---------------------------------------------------------------------------------
 
-.PHONY: $(BUILD) clean run deploy
+.PHONY: $(BUILD) clean run deploy dolphin
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
@@ -75,6 +75,7 @@ deploy: $(BUILD)
 	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)
 	@cp $(BUILD)/$(TARGET).dol $(CURDIR)/sdcard/apps/$(TARGET)/boot.dol
 	@cp $(CURDIR)/meta.xml $(CURDIR)/sdcard/apps/$(TARGET)/meta.xml
+	@rm -rf $(CURDIR)/sdcard/apps/$(TARGET)/sprites
 	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)/sprites
 	@echo "Deployed to sdcard/apps/$(TARGET)/"
 	@echo "  boot.dol, meta.xml"
@@ -87,6 +88,7 @@ else
 	@cp $(CURDIR)/sprites/*.png $(CURDIR)/sdcard/apps/$(TARGET)/sprites/
 	@echo "  sprites/ ($(words $(wildcard $(CURDIR)/sprites/*.png)) PNGs)"
 endif
+	@rm -rf $(CURDIR)/sdcard/apps/$(TARGET)/audio
 	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)/audio
 ifeq ($(wildcard $(CURDIR)/audio/*.pcm),)
 	@echo "  WARNING: audio/ is empty -- the game will run silently."
@@ -95,6 +97,25 @@ else
 	@echo "  audio/ ($(words $(wildcard $(CURDIR)/audio/*.pcm)) PCM files)"
 endif
 	@echo "Copy sdcard/ contents to SD card root"
+
+# Push straight to the folder Dolphin reads as its SD card. On MC1 that path
+# comes from Dolphin's own config (WiiSDCardPath in Dolphin.ini); /mnt/c is the
+# Windows drive as seen from WSL. Override DOLPHIN_SD for a different setup.
+DOLPHIN_SD ?= /mnt/c/Dolphin/sdcard
+
+dolphin: deploy
+	@if [ ! -d /mnt/c ]; then \
+		echo "No /mnt/c -- not running under WSL, nothing to sync."; \
+	else \
+		rm -rf "$(DOLPHIN_SD)/apps/$(TARGET)"; \
+		mkdir -p "$(DOLPHIN_SD)/apps/$(TARGET)"; \
+		cp -r $(CURDIR)/sdcard/apps/$(TARGET)/. "$(DOLPHIN_SD)/apps/$(TARGET)/"; \
+		echo "Synced to $(DOLPHIN_SD)/apps/$(TARGET)/"; \
+		echo "  boot.dol   $$(stat -c%s "$(DOLPHIN_SD)/apps/$(TARGET)/boot.dol") bytes"; \
+		echo "  sprites    $$(ls "$(DOLPHIN_SD)/apps/$(TARGET)/sprites"/*.png 2>/dev/null | wc -l)"; \
+		echo "  audio      $$(ls "$(DOLPHIN_SD)/apps/$(TARGET)/audio"/*.pcm 2>/dev/null | wc -l)"; \
+		printf '\nIn Dolphin, open:\n  %s\n' 'C:\Dolphin\sdcard\apps\$(TARGET)\boot.dol'; \
+	fi
 
 #---------------------------------------------------------------------------------
 endif

@@ -95,34 +95,47 @@ ls build/moonlight-drift.dol    # ~2MB Wii executable
 
 ### Running in Dolphin
 
-Two separate things have to be right, and getting only one of them right is the
-usual cause of "it looks like the old build" or missing artwork:
+One command on MC1 builds, stages and pushes everything to the folder Dolphin
+reads as its SD card:
 
-**1. The `.dol` Dolphin opens.** Use the current build, not a copy made earlier:
-
-```
-\\wsl$\Ubuntu\home\magma\game_dev\moonlight-drift-wii\build\moonlight-drift.dol
+```bash
+make dolphin
 ```
 
-**2. The SD card Dolphin emulates.** This is where `sd:/apps/moonlight-drift/...`
-resolves — opening the `.dol` does *not* give Dolphin the sprites or audio.
-Enable SD in Dolphin (Config → Wii → Insert SD Card) and point it at a folder
-whose root contains `apps/moonlight-drift/` with `sprites/` and `audio/` inside.
-
-`make deploy` stages exactly that layout:
+Then in Dolphin open:
 
 ```
-sdcard/
-└── apps/moonlight-drift/
-    ├── boot.dol
-    ├── meta.xml
-    ├── sprites/   (48 PNGs)
-    └── audio/     (4 PCM files)
+C:\Dolphin\sdcard\apps\moonlight-drift\boot.dol
 ```
+
+That is the whole loop. The `.dol` and its assets come from the same synced tree,
+so they can never drift apart.
+
+**Why it matters that both are in sync.** Opening a `.dol` does *not* give
+Dolphin the sprites or audio — those resolve through the emulated SD card at
+`sd:/apps/moonlight-drift/`. Running a current binary against a stale card (or
+vice versa) looks exactly like the game being broken.
+
+**Where Dolphin's SD setting lives**, if it ever needs checking:
+
+```
+%APPDATA%\Dolphin Emulator\Config\Dolphin.ini   ->   WiiSDCardPath
+```
+
+`make dolphin` defaults to `C:\Dolphin\sdcard` to match. Override it if yours
+differs:
+
+```bash
+make dolphin DOLPHIN_SD=/mnt/c/some/other/sdcard
+```
+
+The target clears the app directory before copying rather than merging, because
+asset filenames have changed across versions and orphans left behind are exactly
+what makes a folder ambiguous. It no-ops harmlessly anywhere without `/mnt/c`.
 
 If the card is missing or incomplete the game still boots, and a **startup
-report** screen lists which of SD, font, sprites and audio came up. That screen
-is the fastest way to tell an asset problem from a code problem.
+report** lists which of SD, font, sprites and audio came up — the fastest way to
+tell an asset problem from a code problem.
 
 ### Deploy to SD Card
 
