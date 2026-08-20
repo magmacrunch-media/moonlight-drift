@@ -32,6 +32,11 @@
 #define APP_NAME            "moonlight-drift"
 #define HIGH_SCORE_COUNT    10
 
+/* Name each drawing step on the first frame of a run, so a crash leaves the
+   step that caused it on screen. Costs four frames once per run. Set to 0 once
+   gameplay is known good. */
+#define TRACE_FIRST_GAMEPLAY_FRAME  1
+
 /* Percent of each screen edge assumed lost to TV overscan. Raise if the border
    or bottom line of text is cut off on your set. */
 #define OVERSCAN_PCT        6

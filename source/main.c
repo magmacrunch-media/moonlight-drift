@@ -26,6 +26,7 @@ static int frame_count = 0;
    abstraction once a second game needs it. */
 static int char_select_open = 0;
 static int char_cursor = 0;
+static int char_top_row = 0;   /* first visible grid row */
 static int credits_open = 0;
 
 static void apply_character(Player *p) {
@@ -91,11 +92,12 @@ static void show_startup_report(void) {
     }
 }
 
-/* Grid navigation wraps on both axes: past the right edge moves to the next
-   row, past the last cell wraps to the first. */
+/* Grid navigation wraps on both axes, and the visible window follows the
+   cursor rather than the cursor being trapped inside the window. */
 static void move_cursor(int dcol, int drow) {
     int count = characters_get_count();
     if (count <= 0) return;
+    int total_rows = (count + CHAR_GRID_COLS - 1) / CHAR_GRID_COLS;
 
     if (dcol) {
         char_cursor += dcol;
@@ -107,13 +109,23 @@ static void move_cursor(int dcol, int drow) {
         if (next < 0) {
             /* Wrap to the same column on the last populated row. */
             int col = char_cursor % CHAR_GRID_COLS;
-            next = ((count - 1) / CHAR_GRID_COLS) * CHAR_GRID_COLS + col;
+            next = (total_rows - 1) * CHAR_GRID_COLS + col;
             while (next >= count) next -= CHAR_GRID_COLS;
         } else if (next >= count) {
             next = char_cursor % CHAR_GRID_COLS;
         }
         char_cursor = next;
     }
+
+    /* Scroll the window the minimum needed to keep the cursor on screen. */
+    int row = char_cursor / CHAR_GRID_COLS;
+    if (row < char_top_row) char_top_row = row;
+    if (row >= char_top_row + CHAR_GRID_ROWS) char_top_row = row - CHAR_GRID_ROWS + 1;
+
+    int max_top = total_rows - CHAR_GRID_ROWS;
+    if (max_top < 0) max_top = 0;
+    if (char_top_row > max_top) char_top_row = max_top;
+    if (char_top_row < 0) char_top_row = 0;
 }
 
 /* Returns 1 once a character is chosen and the game should advance. */
@@ -168,12 +180,34 @@ static void update_playing(GameStateMachine *gs, Player *player) {
 
     stars_update();
     shooting_stars_update(CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    /* Each splash renders and flips immediately, so whatever label is left on
+       screen after a fault is the step that caused it. */
+#if TRACE_FIRST_GAMEPLAY_FRAME
+    int trace = (frame_count == 1);
+#else
+    const int trace = 0;
+#endif
+
+    if (trace) { printf("trace: background\n"); renderer_splash("TRACE", "background"); }
     game_draw_background();
+
+    if (trace) { printf("trace: stars\n"); renderer_splash("TRACE", "stars"); }
     game_draw_stars();
+
+    if (trace) { printf("trace: obstacles\n"); renderer_splash("TRACE", "obstacles"); }
     obstacle_draw_all();
+
+    if (trace) { printf("trace: player sprite\n"); renderer_splash("TRACE", "player sprite"); }
     game_draw_player(player, input_thrust_pressed());
+
+    if (trace) { printf("trace: score plate\n"); renderer_splash("TRACE", "score plate"); }
     game_draw_score(scoring_get());
+
+    if (trace) { printf("trace: present\n"); renderer_splash("TRACE", "present"); }
     renderer_finish();
+
+    if (trace) printf("trace: first frame complete\n");
 }
 
 int main(int argc, char **argv) {
@@ -186,6 +220,10 @@ int main(int argc, char **argv) {
         .max_scores   = HIGH_SCORE_COUNT,
         .overscan_pct = OVERSCAN_PCT
     };
+    /* Sends printf to the OSReport channel, which Dolphin captures in its log.
+       Free diagnostics for anyone who turns logging on. */
+    SYS_STDIO_Report(true);
+
     int init_status = magnolia_init(&cfg);
     /* -2 means video never came up; every draw call below would be undefined. */
     if (init_status == -2) return 1;
@@ -229,7 +267,7 @@ int main(int argc, char **argv) {
                 case GS_TITLE:
                     stars_update();
                     if (char_select_open) {
-                        ui_draw_character_select(char_cursor);
+                        ui_draw_character_select(char_cursor, char_top_row);
                     } else if (credits_open) {
                         ui_draw_credits();
                     } else {
@@ -276,6 +314,8 @@ int main(int argc, char **argv) {
             } else if (gamestate_current(&gs) == GS_TITLE && input_start_pressed()) {
                 game_render_load_portraits();
                 char_cursor = characters_get_current_index();
+                char_top_row = 0;
+                move_cursor(0, 0);   /* scrolls the window onto the cursor */
                 char_select_open = 1;
             } else if (gamestate_update(&gs, scoring_get())) {
                 start_run(&player);

@@ -40,65 +40,70 @@ void ui_draw_title(int muted) {
     renderer_finish();
 }
 
-void ui_draw_character_select(int cursor_index) {
+void ui_draw_character_select(int cursor_index, int top_row) {
     game_draw_background();
     game_draw_stars();
     ui_draw_border();
 
-    ui_draw_centered_text(24, "SELECT CHARACTER", 18, CYAN);
+    ui_draw_centered_text(22, "SELECT CHARACTER", 18, CYAN);
 
-    const int cell_w = 96, cell_h = 62;
-    const int grid_x = 32, grid_y = 62;
+    const int cell_w = 186, cell_h = 140;
+    const int grid_x = 42, grid_y = 56;
     int count = characters_get_count();
+    int total_rows = (count + CHAR_GRID_COLS - 1) / CHAR_GRID_COLS;
 
-    for (int i = 0; i < count && i < CHAR_GRID_COLS * CHAR_GRID_ROWS; i++) {
-        int col = i % CHAR_GRID_COLS;
-        int row = i / CHAR_GRID_COLS;
+    for (int slot = 0; slot < CHAR_GRID_COLS * CHAR_GRID_ROWS; slot++) {
+        int col = slot % CHAR_GRID_COLS;
+        int row = top_row + slot / CHAR_GRID_COLS;
+        int i = row * CHAR_GRID_COLS + col;
+        if (i >= count) continue;
+
         int cx = grid_x + col * cell_w;
-        int cy = grid_y + row * cell_h;
+        int cy = grid_y + (slot / CHAR_GRID_COLS) * cell_h;
 
         if (i == cursor_index) {
             GRRLIB_Rectangle(ui_map_x(cx), ui_map_y(cy),
-                             ui_map_w(cell_w - 4), ui_map_h(cell_h - 4),
+                             ui_map_w(cell_w - 8), ui_map_h(cell_h - 8),
                              RGBA(0, 212, 255, 45), true);
             GRRLIB_Rectangle(ui_map_x(cx), ui_map_y(cy),
-                             ui_map_w(cell_w - 4), ui_map_h(cell_h - 4),
+                             ui_map_w(cell_w - 8), ui_map_h(cell_h - 8),
                              CYAN, false);
         }
 
-        /* Portraits are 128px art shown at ~52px. The sprite origin lands on
-           the cell centre, so characters sit consistently regardless of how
-           their art is positioned inside its canvas. */
-        float px = ui_map_x(cx + (cell_w - 4) / 2);
-        float py = ui_map_y(cy + (cell_h - 4) / 2);
-        float scale = (float)ui_map_w(52) / 128.0f;
+        /* Portraits are 128px art shown near 1:1 -- the point of scrolling is
+           that they no longer have to shrink to fit the whole roster. */
+        float px = ui_map_x(cx + (cell_w - 8) / 2);
+        float py = ui_map_y(cy + (cell_h - 8) / 2);
+        float scale = (float)ui_map_w(112) / 128.0f;
 
         if (game_portrait_valid(i)) {
             game_draw_portrait(i, px, py, scale);
         } else {
-            /* No art: show the slot rather than an unexplained gap. */
-            GRRLIB_Rectangle(px - ui_map_w(12), py - ui_map_h(12),
-                             ui_map_w(24), ui_map_h(24), DIM, false);
+            GRRLIB_Rectangle(px - ui_map_w(24), py - ui_map_h(24),
+                             ui_map_w(48), ui_map_h(48), DIM, false);
         }
+    }
+
+    /* Scroll position: one pip per row, filled for the rows on screen. */
+    for (int r = 0; r < total_rows; r++) {
+        int on = (r >= top_row && r < top_row + CHAR_GRID_ROWS);
+        int px = 300 + r * 12;
+        GRRLIB_Rectangle(ui_map_x(px), ui_map_y(344),
+                         ui_map_w(8), ui_map_h(6),
+                         on ? CYAN : DIM, on);
     }
 
     const CharacterData *ch = characters_get_by_index(cursor_index);
     if (ch) {
-        ui_draw_centered_text(322, ch->name, 16, WHITE);
+        ui_draw_centered_text(360, ch->name, 16, WHITE);
 
         char stats[64];
-        snprintf(stats, sizeof(stats), "HITBOX %dx%d", ch->hitbox_w, ch->hitbox_h);
-        ui_draw_centered_text(350, stats, 12, DIM);
-
-        /* No %f: printing floats pulls in a much larger libc formatter, and
-           this is the only place the game would need it. */
-        int thr = (int)(-ch->thrust * 100.0f + 0.5f);
-        int grv = (int)(ch->gravity * 100.0f + 0.5f);
-        snprintf(stats, sizeof(stats), "THRUST 0.%02d   GRAVITY 0.%02d", thr, grv);
-        ui_draw_centered_text(372, stats, 12, DIM);
+        snprintf(stats, sizeof(stats), "HITBOX %dx%d   %d of %d",
+                 ch->hitbox_w, ch->hitbox_h, cursor_index + 1, count);
+        ui_draw_centered_text(388, stats, 11, DIM);
     }
 
-    ui_draw_centered_text(408, "D-Pad: move   A: select   B: back", 12, DIM);
+    ui_draw_centered_text(414, "D-Pad: move   A: select   B: back", 11, DIM);
 
     renderer_finish();
 }

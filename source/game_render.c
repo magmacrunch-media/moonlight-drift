@@ -213,12 +213,10 @@ void game_draw_score(int score) {
 
     int tx = ui_map_x(bx + 15), ty = ui_map_y(by + 17);
     unsigned int size = ui_map_size(14);
-    /* Black outline, drawn as four offsets, then the gold fill. */
-    for (int dx = -1; dx <= 1; dx++) {
-        for (int dy = -1; dy <= 1; dy++) {
-            if (dx == 0 && dy == 0) continue;
-            GRRLIB_PrintfTTF(tx + dx, ty + dy, ttf_font, buf, size, RGBA(0, 0, 0, 255));
-        }
-    }
+    /* One shadow plus the fill, as everywhere else in the UI. A full eight-way
+       outline meant nine PrintfTTF calls a frame, and each one rasterises every
+       glyph through FreeType -- roughly 4,800 glyph renders a second for a
+       readability gain nobody can see on a CRT. */
+    GRRLIB_PrintfTTF(tx + 2, ty + 2, ttf_font, buf, size, RGBA(0, 0, 0, 255));
     GRRLIB_PrintfTTF(tx, ty, ttf_font, buf, size, RGBA(255, 215, 0, 255));
 }
