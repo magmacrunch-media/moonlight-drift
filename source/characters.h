@@ -4,8 +4,11 @@
 typedef struct {
     const char *id;
     const char *name;
-    const char *sprite_idle;
-    const char *sprite_thrust;
+    /* PNG bytes linked into the binary (see the bin2s rule in the Makefile),
+       not paths -- assets that ship inside the executable cannot go missing or
+       fall out of step with the code. */
+    const unsigned char *sprite_idle;
+    const unsigned char *sprite_thrust;
     int hitbox_w;
     int hitbox_h;
     int hitbox_offset_x;

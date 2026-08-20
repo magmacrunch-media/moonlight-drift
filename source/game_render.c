@@ -20,12 +20,10 @@ void game_render_load_sprites(const CharacterData *ch) {
 
     /* Character art records where its drawing origin sits inside the PNG; the
        engine places that point at the player position. */
-    int ok_idle = sprite_load(&spr_idle,
-                              magnolia_asset_path(ch->sprite_idle),
-                              ch->sprite_origin_x, ch->sprite_origin_y);
-    int ok_thrust = sprite_load(&spr_thrust,
-                                magnolia_asset_path(ch->sprite_thrust),
-                                ch->sprite_origin_x, ch->sprite_origin_y);
+    int ok_idle = sprite_load_mem(&spr_idle, ch->sprite_idle,
+                                  ch->sprite_origin_x, ch->sprite_origin_y);
+    int ok_thrust = sprite_load_mem(&spr_thrust, ch->sprite_thrust,
+                                    ch->sprite_origin_x, ch->sprite_origin_y);
     sprites_ready = ok_idle && ok_thrust;
 }
 
@@ -64,11 +62,12 @@ void game_render_load_portraits(void) {
     portrait_count = total;
 
     for (int i = 0; i < total; i++) {
-        draw_portrait_progress(i, total);
+        /* Decoding 24 PNGs still takes a moment even from memory. */
+        if ((i % 4) == 0) draw_portrait_progress(i, total);
         const CharacterData *ch = characters_get_by_index(i);
         if (!ch) continue;
-        sprite_load(&portraits[i], magnolia_asset_path(ch->sprite_idle),
-                    ch->sprite_origin_x, ch->sprite_origin_y);
+        sprite_load_mem(&portraits[i], ch->sprite_idle,
+                        ch->sprite_origin_x, ch->sprite_origin_y);
     }
     portraits_ready = 1;
 }

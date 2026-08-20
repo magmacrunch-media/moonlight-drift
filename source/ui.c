@@ -20,18 +20,13 @@
 void ui_init(void) {
 }
 
-void ui_draw_title(int selected_char_index, int muted) {
+void ui_draw_title(int muted) {
     game_draw_background();
     game_draw_stars();
     ui_draw_border();
 
     ui_draw_centered_text(80, "MOONLIGHT", 40, CYAN);
     ui_draw_centered_text(130, "DRIFT", 40, CYAN);
-
-    const CharacterData *ch = characters_get_by_index(selected_char_index);
-    if (ch) {
-        ui_draw_centered_text(220, ch->name, 16, WHITE);
-    }
 
     ui_draw_centered_text(316, "A: choose character", 13, DIM);
     ui_draw_centered_text(338, muted ? "1: sound OFF   2: credits"

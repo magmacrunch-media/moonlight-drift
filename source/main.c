@@ -12,6 +12,7 @@
 #include "game_render.h"
 #include "settings.h"
 #include "ui.h"
+#include "assets.h"
 
 /* SFX slots, in load order. */
 #define SFX_CRASH   0
@@ -72,13 +73,13 @@ static void show_startup_report(void) {
         ui_draw_centered_text(210, sound ? "AUDIO: loaded"       : "AUDIO: NOT FOUND",     13, sound ? GOOD : BAD);
 
         if (!sd) {
-            ui_draw_centered_text(258, "Assets live on the SD card at", 11, DIM_C);
-            ui_draw_centered_text(276, "apps/" APP_NAME "/", 11, WHITE_C);
-            ui_draw_centered_text(300, "In Dolphin, enable SD and point it", 11, DIM_C);
-            ui_draw_centered_text(318, "at the folder holding apps/", 11, DIM_C);
+            ui_draw_centered_text(262, "Sprites and audio are built into", 11, DIM_C);
+            ui_draw_centered_text(280, "the binary, so play is unaffected.", 11, DIM_C);
+            ui_draw_centered_text(310, "Without a card, high scores and", 11, DIM_C);
+            ui_draw_centered_text(328, "settings will not be saved.", 11, DIM_C);
         }
 
-        ui_draw_centered_text(390, "The game still runs without them.", 11, DIM_C);
+        ui_draw_centered_text(390, "The game plays normally.", 11, DIM_C);
         char cont[40];
         snprintf(cont, sizeof(cont), "Press A to continue  (%ds)",
                  (timeout_frames - f) / 60);
@@ -195,11 +196,10 @@ int main(int argc, char **argv) {
     characters_init();
     ui_init();
 
-    renderer_splash("LOADING AUDIO", NULL);
     audio_init();
-    audio_load_sfx(SFX_CRASH,   "audio/crash.pcm");
-    audio_load_sfx(SFX_BUTTON1, "audio/button1.pcm");
-    audio_load_sfx(SFX_BUTTON2, "audio/button2.pcm");
+    audio_load_sfx_mem(SFX_CRASH,   crash_pcm,   crash_pcm_size);
+    audio_load_sfx_mem(SFX_BUTTON1, button1_pcm, button1_pcm_size);
+    audio_load_sfx_mem(SFX_BUTTON2, button2_pcm, button2_pcm_size);
 
     /* Restore the player's last character and mute preference before anything
        reads them, so the title screen comes up in the state they left it. */
@@ -207,11 +207,8 @@ int main(int argc, char **argv) {
     audio_set_muted(settings_get_muted());
     characters_set_current(settings_get_character());
 
-    /* The music track is the single largest read at startup (~2MB). */
-    renderer_splash("LOADING MUSIC", NULL);
-    audio_play_music("audio/music.pcm");
+    audio_play_music_mem(music_pcm, music_pcm_size);
 
-    renderer_splash("LOADING CHARACTER", NULL);
     Player player;
     player_init(&player);
     apply_character(&player);
@@ -219,7 +216,7 @@ int main(int argc, char **argv) {
     GameStateMachine gs;
     gamestate_init(&gs);
 
-    if (init_status != 0 || !game_render_sprites_loaded()) show_startup_report();
+    if (!game_render_sprites_loaded() || !magnolia_fonts_loaded()) show_startup_report();
 
     while (1) {
         input_scan();
@@ -236,8 +233,7 @@ int main(int argc, char **argv) {
                     } else if (credits_open) {
                         ui_draw_credits();
                     } else {
-                        ui_draw_title(characters_get_current_index(),
-                                      audio_get_muted());
+                        ui_draw_title(audio_get_muted());
                     }
                     break;
                 case GS_READY:

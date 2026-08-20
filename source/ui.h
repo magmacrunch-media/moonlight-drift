@@ -6,7 +6,7 @@
 #include "player.h"
 
 void ui_init(void);
-void ui_draw_title(int selected_char_index, int muted);
+void ui_draw_title(int muted);
 
 /* 6x4 grid of every character, cursor on `cursor_index`. Laid out in the
    640x480 design space; ui_map_* projects it into the TV-safe area. */

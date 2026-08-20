@@ -32,6 +32,14 @@ export OUTPUT   := $(CURDIR)/$(TARGET)
 export VPATH    := $(foreach dir,$(SOURCES),$(TOPDIR)/$(dir))
 export DEPSDIR  := $(CURDIR)
 
+# Sprites and audio are linked into the binary rather than read from SD. Assets
+# on a card can go missing, go stale, or disagree with the code -- all three
+# have happened here. bin2s emits one assembly blob plus a header of symbols;
+# -a 32 matches ASND's DMA alignment so audio plays straight out of the image
+# with no copy.
+BIN2S       := $(DEVKITPRO)/tools/bin/bin2s
+ASSETFILES  := $(wildcard $(TOPDIR)/sprites/*.png) $(wildcard $(TOPDIR)/audio/*.pcm)
+
 CFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(TOPDIR)/$(dir)/*.c)))
 CPPFILES    := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(TOPDIR)/$(dir)/*.cpp)))
 
@@ -41,16 +49,29 @@ else
     export LD  := $(CXX)
 endif
 
-export OFILES   := $(addsuffix .o,$(basename $(CPPFILES) $(CFILES)))
+export OFILES   := assets.o $(addsuffix .o,$(basename $(CPPFILES) $(CFILES)))
 export INCLUDE  := $(foreach dir,$(INCLUDES),-I$(TOPDIR)/$(dir)) \
                    $(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-                   -I$(CURDIR)/$(BUILD) -I$(LIBOGC_INC)
+                   -I$(CURDIR) -I$(CURDIR)/$(BUILD) -I$(LIBOGC_INC)
 export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib) -L$(LIBOGC_LIB)
 
 DEPENDS := $(OFILES:.o=.d)
 
 $(OUTPUT).dol: $(OUTPUT).elf
 $(OUTPUT).elf: $(OFILES)
+
+assets.s: $(ASSETFILES)
+	@echo "embedding $(words $(ASSETFILES)) assets ..."
+	@$(BIN2S) -a 32 -H assets.h $(ASSETFILES) > assets.s
+	@echo "" >> assets.s
+
+assets.h: assets.s
+
+assets.o: assets.s
+	@$(AS) -o $@ assets.s
+
+# Every translation unit may include assets.h, so it must exist first.
+$(filter-out assets.o,$(OFILES)): assets.h
 
 -include $(DEPENDS)
 
