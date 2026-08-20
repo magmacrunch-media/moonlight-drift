@@ -269,6 +269,7 @@ static void draw_obstacle_bottom(Obstacle *o) {
     }
 }
 
+#if GAMEPLAY_MILESTONE_MARKERS
 /* Port of drawMilestoneMarkers() in js/obstacles.js: a dashed complementary rule
    through the gap, with the obstacle number in a bordered box. */
 static void draw_milestone_marker(Obstacle *o) {
@@ -309,6 +310,8 @@ static void draw_milestone_marker(Obstacle *o) {
     }
 }
 
+#endif /* GAMEPLAY_MILESTONE_MARKERS */
+
 void obstacle_draw_all(void) {
     Obstacle *o;
     for (int i = 0; i < obstacles_get_count(); i++) {
@@ -338,10 +341,12 @@ void obstacle_draw_all(void) {
         }
     }
 
+#if GAMEPLAY_MILESTONE_MARKERS
     /* Second pass so markers sit above every obstacle, as in the web renderer
        where drawMilestoneMarkers() runs after drawObstacles(). */
     for (int i = 0; i < obstacles_get_count(); i++) {
         obstacles_get(i, &o);
         if (o) draw_milestone_marker(o);
     }
+#endif
 }

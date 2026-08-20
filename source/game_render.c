@@ -183,6 +183,19 @@ void game_draw_stars(void) {
     }
 }
 
+void game_draw_player_box(const Player *p) {
+    GRRLIB_Rectangle(p->x, p->y, (f32)p->width, (f32)p->height,
+                     RGBA(255, 255, 255, 255), true);
+}
+
+void game_draw_score_plain(int score) {
+    if (!ttf_font) return;
+    char buf[24];
+    snprintf(buf, sizeof(buf), "score: %d", score);
+    GRRLIB_PrintfTTF(ui_map_x(20), ui_map_y(16), ttf_font, buf,
+                     ui_map_size(14), RGBA(255, 215, 0, 255));
+}
+
 void game_draw_player(const Player *p, int thrust_active) {
     if (sprites_ready) {
         sprite_draw(thrust_active ? &spr_thrust : &spr_idle, p->x, p->y);

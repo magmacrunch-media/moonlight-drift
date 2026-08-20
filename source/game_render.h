@@ -32,4 +32,9 @@ void game_draw_stars(void);
 void game_draw_player(const Player *p, int thrust_active);
 void game_draw_score(int score);
 
+/* Minimal fallbacks used when the corresponding GAMEPLAY_* switch is off, so a
+   disabled feature still leaves the game playable and readable. */
+void game_draw_score_plain(int score);
+void game_draw_player_box(const Player *p);
+
 #endif

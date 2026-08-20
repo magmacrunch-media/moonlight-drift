@@ -191,7 +191,9 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     for (int i = 0; i < score_inc; i++) scoring_increment();
 
     stars_update();
+#if GAMEPLAY_SHOOTING_STARS
     shooting_stars_update(CANVAS_WIDTH, CANVAS_HEIGHT);
+#endif
 
     /* Each splash renders and flips immediately, so whatever label is left on
        screen after a fault is the step that caused it. */
@@ -211,10 +213,18 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     obstacle_draw_all();
 
     if (trace) { printf("trace: player sprite\n"); renderer_splash("TRACE", "player sprite"); }
+#if GAMEPLAY_PLAYER_SPRITE
     game_draw_player(player, input_thrust_pressed());
+#else
+    game_draw_player_box(player);
+#endif
 
     if (trace) { printf("trace: score plate\n"); renderer_splash("TRACE", "score plate"); }
+#if GAMEPLAY_SCORE_PLATE
     game_draw_score(scoring_get());
+#else
+    game_draw_score_plain(scoring_get());
+#endif
 
     if (trace) { printf("trace: present\n"); renderer_splash("TRACE", "present"); }
     renderer_finish();
