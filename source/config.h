@@ -32,18 +32,15 @@
 #define APP_NAME            "moonlight-drift"
 #define HIGH_SCORE_COUNT    10
 
-/* Gameplay feature switches. Everything here is code that has never completed a
-   single frame on hardware, so it is all suspect in the entry crash. Off by
-   default to establish a playable baseline; turn them back on one at a time to
-   find which one is at fault. */
-#define GAMEPLAY_SCORE_PLATE        0   /* SNES score box */
-#define GAMEPLAY_SHOOTING_STARS     0   /* trails across the play field */
-#define GAMEPLAY_MILESTONE_MARKERS  0   /* dashed rule every 10th obstacle */
-#define GAMEPLAY_PLAYER_SPRITE      1   /* proven: the grid draws sprites fine */
-
-/* On-screen step trace. Of limited use -- a fault appears to repaint the whole
-   framebuffer -- but harmless. printf tracing to Dolphin's log is unconditional. */
-#define TRACE_FIRST_GAMEPLAY_FRAME  0
+/* Unattended test hooks. All off in a normal build; together they let a scripted
+   run reach and hold gameplay with no controller, which is how the entry crash
+   was finally cornered -- every suspect feature ran for thousands of frames.
+   Reaching gameplay by hand needs three button presses into an emulator window,
+   and without a heartbeat a silent log cannot tell a crash from a game sitting
+   quietly on a screen with nothing left to say. */
+#define AUTOSTART_GAMEPLAY          0   /* boot straight into a run */
+#define DEBUG_IMMORTAL              0   /* ignore death, so a run continues unattended */
+#define DEBUG_HEARTBEAT_FRAMES      0   /* print frame/obstacles/score every N frames; 0 off */
 
 /* Percent of each screen edge assumed lost to TV overscan. Raise if the border
    or bottom line of text is cut off on your set. */

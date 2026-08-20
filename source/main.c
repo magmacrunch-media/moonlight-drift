@@ -169,9 +169,14 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     if (frame_count == 1) printf("update_playing: first frame entered\n");
 
     if (player_update(player, input_thrust_pressed(), SCREEN_HEIGHT)) {
+#if DEBUG_IMMORTAL
+        player->y = PLAYER_Y_INITIAL;
+        player->velocity = 0.0f;
+#else
         audio_play_sfx(SFX_CRASH);
         gamestate_end_run(gs, scoring_get());
         return;
+#endif
     }
 
     if (frame_count % OBSTACLE_SPAWN_INTERVAL == 0) {
@@ -182,55 +187,32 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     if (obstacles_check_collision((int)player->x + player->offsetX,
                                   (int)player->y + player->offsetY,
                                   player->width, player->height)) {
+#if !DEBUG_IMMORTAL
         audio_play_sfx(SFX_CRASH);
         gamestate_end_run(gs, scoring_get());
         return;
+#endif
     }
 
     int score_inc = obstacles_check_score((int)player->x);
     for (int i = 0; i < score_inc; i++) scoring_increment();
 
     stars_update();
-#if GAMEPLAY_SHOOTING_STARS
     shooting_stars_update(CANVAS_WIDTH, CANVAS_HEIGHT);
-#endif
 
-    /* Each splash renders and flips immediately, so whatever label is left on
-       screen after a fault is the step that caused it. */
-#if TRACE_FIRST_GAMEPLAY_FRAME
-    int trace = (frame_count == 1);
-#else
-    const int trace = 0;
-#endif
-
-    if (trace) { printf("trace: background\n"); renderer_splash("TRACE", "background"); }
     game_draw_background();
-
-    if (trace) { printf("trace: stars\n"); renderer_splash("TRACE", "stars"); }
     game_draw_stars();
-
-    if (trace) { printf("trace: obstacles\n"); renderer_splash("TRACE", "obstacles"); }
     obstacle_draw_all();
-
-    if (trace) { printf("trace: player sprite\n"); renderer_splash("TRACE", "player sprite"); }
-#if GAMEPLAY_PLAYER_SPRITE
     game_draw_player(player, input_thrust_pressed());
-#else
-    game_draw_player_box(player);
-#endif
-
-    if (trace) { printf("trace: score plate\n"); renderer_splash("TRACE", "score plate"); }
-#if GAMEPLAY_SCORE_PLATE
     game_draw_score(scoring_get());
-#else
-    game_draw_score_plain(scoring_get());
-#endif
-
-    if (trace) { printf("trace: present\n"); renderer_splash("TRACE", "present"); }
     renderer_finish();
 
-    if (trace) printf("trace: first frame complete\n");
-    if (frame_count == 2) printf("trace: second frame complete -- gameplay is running\n");
+#if DEBUG_HEARTBEAT_FRAMES
+    if (frame_count % DEBUG_HEARTBEAT_FRAMES == 0) {
+        printf("heartbeat: frame=%d obstacles=%d score=%d\n",
+               frame_count, obstacles_get_count(), scoring_get());
+    }
+#endif
 }
 
 int main(int argc, char **argv) {
@@ -279,6 +261,12 @@ int main(int argc, char **argv) {
 
     GameStateMachine gs;
     gamestate_init(&gs);
+
+#if AUTOSTART_GAMEPLAY
+    printf("autostart: skipping menus, entering gameplay directly\n");
+    start_run(&player);
+    gamestate_set(&gs, GS_PLAYING);
+#endif
 
     if (!game_render_sprites_loaded() || !magnolia_fonts_loaded()) show_startup_report();
 
