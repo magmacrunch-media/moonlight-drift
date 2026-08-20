@@ -3,8 +3,10 @@
 
 /* Player preferences persisted next to the high scores, so a chosen character
    and a muted soundtrack survive a power cycle.
-   Kept in the game rather than magnolia: it has exactly one consumer, and the
-   engine grows an abstraction when a second game needs it. */
+
+   The storage moved into magnolia once George Boole needed the same thing; these
+   names stay here because which preferences a game has, and what counts as a
+   valid value for one, is the game's business. */
 
 void settings_load(void);
 void settings_save(void);

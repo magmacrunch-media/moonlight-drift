@@ -1,43 +1,42 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "magnolia.h"
 #include "characters.h"
 #include "settings.h"
 
-#define SETTINGS_FILE "settings.json"
+/* Thin naming layer over the engine's preference store. What used to be here --
+   a hand-rolled reader and writer for settings.json -- moved into magnolia when
+   a second game needed the same thing, which is the rule this file's header
+   asked for. What stays is the part that is actually this game's: which
+   preferences exist, and that a character index is only valid against the
+   current roster. */
 
-static int sel_character = 0;
-static int muted = 0;
+#define KEY_CHARACTER "character"
+#define KEY_MUTED     "muted"
 
-/* Deliberately the same shape as the scores file: a tiny hand-parsed JSON
-   object, readable from a PC if someone wants to inspect their SD card. */
 void settings_load(void) {
-    FILE *f = fopen(magnolia_asset_path(SETTINGS_FILE), "r");
-    if (!f) return;
-
-    char buf[192];
-    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
-    fclose(f);
-    buf[n] = '\0';
-
-    const char *p = strstr(buf, "\"character\":");
-    if (p) {
-        int v = atoi(p + 12);
-        if (v >= 0 && v < characters_get_count()) sel_character = v;
+    /* prefs are loaded by magnolia_init(); nothing to do but validate. */
+    int v = prefs_get_int(KEY_CHARACTER, 0);
+    if (v < 0 || v >= characters_get_count()) {
+        prefs_set_int(KEY_CHARACTER, 0);
     }
-    p = strstr(buf, "\"muted\":");
-    if (p) muted = atoi(p + 8) ? 1 : 0;
 }
 
 void settings_save(void) {
-    FILE *f = fopen(magnolia_asset_path(SETTINGS_FILE), "w");
-    if (!f) return;
-    fprintf(f, "{\"character\":%d,\"muted\":%d}", sel_character, muted);
-    fclose(f);
+    prefs_save();
 }
 
-int  settings_get_character(void)       { return sel_character; }
-void settings_set_character(int index)  { sel_character = index; settings_save(); }
-int  settings_get_muted(void)           { return muted; }
-void settings_set_muted(int m)          { muted = m ? 1 : 0; settings_save(); }
+int settings_get_character(void) {
+    int v = prefs_get_int(KEY_CHARACTER, 0);
+    return (v >= 0 && v < characters_get_count()) ? v : 0;
+}
+
+void settings_set_character(int index) {
+    prefs_set_int(KEY_CHARACTER, index);
+}
+
+int settings_get_muted(void) {
+    return prefs_get_int(KEY_MUTED, 0) ? 1 : 0;
+}
+
+void settings_set_muted(int m) {
+    prefs_set_int(KEY_MUTED, m ? 1 : 0);
+}

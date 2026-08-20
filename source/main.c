@@ -21,12 +21,14 @@
 
 static int frame_count = 0;
 
-/* The selector is a sub-mode of the title screen rather than an engine state:
-   character select is this game's concern, and magnolia only grows an
-   abstraction once a second game needs it. */
-static int char_select_open = 0;
-static int char_cursor = 0;
-static int char_top_row = 0;   /* first visible grid row */
+/* Character select is GS_MENU now, and the cursor is the engine's MenuGrid. Both
+   used to be local inventions here -- a loose "is the selector open" flag beside
+   the state machine, and a hand-written wrap-and-scroll -- which is exactly what
+   moved into magnolia once a second game wanted the same shapes.
+
+   Credits stay a title sub-mode: it is not a pre-run selection, and one game
+   having a credits screen is not two. */
+static MenuGrid char_menu;
 static int credits_open = 0;
 
 static void apply_character(Player *p) {
@@ -94,71 +96,26 @@ static void show_startup_report(void) {
         renderer_finish();
 
         input_scan();
-        if (input_start_pressed() || input_home_pressed()) break;
+        if (input_a_pressed() || input_home_pressed()) break;
     }
-}
-
-/* Grid navigation wraps on both axes, and the visible window follows the
-   cursor rather than the cursor being trapped inside the window. */
-static void move_cursor(int dcol, int drow) {
-    int count = characters_get_count();
-    if (count <= 0) return;
-    int total_rows = (count + CHAR_GRID_COLS - 1) / CHAR_GRID_COLS;
-
-    if (dcol) {
-        char_cursor += dcol;
-        if (char_cursor < 0) char_cursor = count - 1;
-        if (char_cursor >= count) char_cursor = 0;
-    }
-    if (drow) {
-        int next = char_cursor + drow * CHAR_GRID_COLS;
-        if (next < 0) {
-            /* Wrap to the same column on the last populated row. */
-            int col = char_cursor % CHAR_GRID_COLS;
-            next = (total_rows - 1) * CHAR_GRID_COLS + col;
-            while (next >= count) next -= CHAR_GRID_COLS;
-        } else if (next >= count) {
-            next = char_cursor % CHAR_GRID_COLS;
-        }
-        char_cursor = next;
-    }
-
-    /* Scroll the window the minimum needed to keep the cursor on screen. */
-    int row = char_cursor / CHAR_GRID_COLS;
-    if (row < char_top_row) char_top_row = row;
-    if (row >= char_top_row + CHAR_GRID_ROWS) char_top_row = row - CHAR_GRID_ROWS + 1;
-
-    int max_top = total_rows - CHAR_GRID_ROWS;
-    if (max_top < 0) max_top = 0;
-    if (char_top_row > max_top) char_top_row = max_top;
-    if (char_top_row < 0) char_top_row = 0;
 }
 
 /* Returns 1 once a character is chosen and the game should advance. */
 static int handle_character_select(Player *player) {
-    int moved = input_left_pressed() || input_right_pressed()
-             || input_up_pressed()   || input_down_pressed();
-    if (input_left_pressed())  move_cursor(-1, 0);
-    if (input_right_pressed()) move_cursor(+1, 0);
-    if (input_up_pressed())    move_cursor(0, -1);
-    if (input_down_pressed())  move_cursor(0, +1);
+    /* Repeat, so holding a direction walks the roster instead of asking for 24
+       separate presses. */
+    int moved = 0;
+    if (input_dir_repeat(INPUT_DIR_LEFT))  moved |= menu_grid_move(&char_menu, -1, 0);
+    if (input_dir_repeat(INPUT_DIR_RIGHT)) moved |= menu_grid_move(&char_menu, +1, 0);
+    if (input_dir_repeat(INPUT_DIR_UP))    moved |= menu_grid_move(&char_menu, 0, -1);
+    if (input_dir_repeat(INPUT_DIR_DOWN))  moved |= menu_grid_move(&char_menu, 0, +1);
     if (moved) audio_play_sfx(SFX_BUTTON1);
 
-    if (input_back_pressed()) {
-        char_select_open = 0;
-        return 0;
-    }
-    if (input_start_pressed()) {
-        printf("select: choosing %d\n", char_cursor);
-        characters_set_current(char_cursor);
-        printf("select: saving settings\n");
-        settings_set_character(char_cursor);
-        printf("select: applying character\n");
+    if (input_a_pressed()) {
+        characters_set_current(char_menu.cursor);
+        settings_set_character(char_menu.cursor);
         apply_character(player);
-        printf("select: sfx\n");
         audio_play_sfx(SFX_BUTTON2);
-        printf("select: done\n");
-        char_select_open = 0;
         return 1;
     }
     return 0;
@@ -168,7 +125,7 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     frame_count++;
     if (frame_count == 1) printf("update_playing: first frame entered\n");
 
-    if (player_update(player, input_thrust_pressed(), SCREEN_HEIGHT)) {
+    if (player_update(player, input_a_held(), SCREEN_HEIGHT)) {
 #if DEBUG_IMMORTAL
         player->y = PLAYER_Y_INITIAL;
         player->velocity = 0.0f;
@@ -203,7 +160,7 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     game_draw_background();
     game_draw_stars();
     obstacle_draw_all();
-    game_draw_player(player, input_thrust_pressed());
+    game_draw_player(player, input_a_held());
     game_draw_score(scoring_get());
     renderer_finish();
 
@@ -261,6 +218,11 @@ int main(int argc, char **argv) {
 
     GameStateMachine gs;
     gamestate_init(&gs);
+    gamestate_set_menu_enabled(&gs, 1);
+
+    menu_grid_init(&char_menu, characters_get_count(),
+                   CHAR_GRID_COLS, CHAR_GRID_ROWS);
+    menu_grid_set_cursor(&char_menu, characters_get_current_index());
 
 #if AUTOSTART_GAMEPLAY
     printf("autostart: skipping menus, entering gameplay directly\n");
@@ -280,13 +242,19 @@ int main(int argc, char **argv) {
             switch (gamestate_current(&gs)) {
                 case GS_TITLE:
                     stars_update();
-                    if (char_select_open) {
-                        ui_draw_character_select(char_cursor, char_top_row);
-                    } else if (credits_open) {
+                    if (credits_open) {
                         ui_draw_credits();
                     } else {
                         ui_draw_title(audio_get_muted());
                     }
+                    break;
+                case GS_MENU:
+                    /* Loading is idempotent, so doing it on the first drawn frame
+                       of the menu costs nothing afterwards and puts the progress
+                       bar exactly where the player is already looking. */
+                    game_render_load_portraits();
+                    menu_grid_set_cursor(&char_menu, characters_get_current_index());
+                    ui_draw_character_select(char_menu.cursor, char_menu.top_row);
                     break;
                 case GS_READY:
                     stars_update();
@@ -306,16 +274,18 @@ int main(int argc, char **argv) {
                     break;
             }
 
-            /* While the grid is open the engine must not act on A, the same
-               way the game withholds GS_PLAYING from it. */
-            if (char_select_open) {
-                if (handle_character_select(&player)) {
-                    gamestate_set(&gs, GS_READY);
-                }
-            } else if (credits_open) {
-                if (input_back_pressed() || input_start_pressed()) {
+            if (credits_open) {
+                if (input_back_pressed() || input_a_pressed()) {
                     credits_open = 0;
                     audio_play_sfx(SFX_BUTTON2);
+                }
+            } else if (gamestate_current(&gs) == GS_MENU) {
+                /* Choosing is the game's; backing out to the title is the
+                   shell's, which is why gamestate_update() still runs. */
+                if (handle_character_select(&player)) {
+                    gamestate_menu_confirm(&gs);
+                } else {
+                    gamestate_update(&gs, scoring_get());
                 }
             } else if (gamestate_current(&gs) == GS_TITLE && input_button1_pressed()) {
                 int m = !audio_get_muted();
@@ -325,12 +295,6 @@ int main(int argc, char **argv) {
             } else if (gamestate_current(&gs) == GS_TITLE && input_button2_pressed()) {
                 credits_open = 1;
                 audio_play_sfx(SFX_BUTTON2);
-            } else if (gamestate_current(&gs) == GS_TITLE && input_start_pressed()) {
-                game_render_load_portraits();
-                char_cursor = characters_get_current_index();
-                char_top_row = 0;
-                move_cursor(0, 0);   /* scrolls the window onto the cursor */
-                char_select_open = 1;
             } else if (gamestate_update(&gs, scoring_get())) {
                 start_run(&player);
             }
