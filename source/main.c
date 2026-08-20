@@ -57,7 +57,11 @@ static void show_startup_report(void) {
     int art   = game_render_sprites_loaded();
     int sound = audio_music_loaded();
 
-    while (1) {
+    /* Waits for A so the report can be read, but never blocks forever: if no
+       Wiimote is connected -- easy to hit in an emulator -- an input-only exit
+       would look exactly like a hang. */
+    const int timeout_frames = 900;   /* ~15s at 60fps */
+    for (int f = 0; f < timeout_frames; f++) {
         game_draw_background();
         ui_draw_border();
         ui_draw_centered_text(60, "STARTUP REPORT", 20, RGBA(255, 215, 0, 255));
@@ -75,12 +79,14 @@ static void show_startup_report(void) {
         }
 
         ui_draw_centered_text(390, "The game still runs without them.", 11, DIM_C);
-        ui_draw_centered_text(420, "Press A to continue", 12, WHITE_C);
+        char cont[40];
+        snprintf(cont, sizeof(cont), "Press A to continue  (%ds)",
+                 (timeout_frames - f) / 60);
+        ui_draw_centered_text(420, cont, 12, WHITE_C);
         renderer_finish();
 
         input_scan();
-        if (input_start_pressed()) break;
-        if (input_home_pressed()) break;
+        if (input_start_pressed() || input_home_pressed()) break;
     }
 }
 
@@ -189,6 +195,7 @@ int main(int argc, char **argv) {
     characters_init();
     ui_init();
 
+    renderer_splash("LOADING AUDIO", NULL);
     audio_init();
     audio_load_sfx(SFX_CRASH,   "audio/crash.pcm");
     audio_load_sfx(SFX_BUTTON1, "audio/button1.pcm");
@@ -199,8 +206,12 @@ int main(int argc, char **argv) {
     settings_load();
     audio_set_muted(settings_get_muted());
     characters_set_current(settings_get_character());
+
+    /* The music track is the single largest read at startup (~2MB). */
+    renderer_splash("LOADING MUSIC", NULL);
     audio_play_music("audio/music.pcm");
 
+    renderer_splash("LOADING CHARACTER", NULL);
     Player player;
     player_init(&player);
     apply_character(&player);
