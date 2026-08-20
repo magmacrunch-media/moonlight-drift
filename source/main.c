@@ -31,18 +31,24 @@ static int credits_open = 0;
 
 static void apply_character(Player *p) {
     const CharacterData *ch = characters_get_current();
+    printf("apply_character: idx=%d name=%s\n",
+           characters_get_current_index(), ch ? ch->name : "(null)");
     player_set_physics(p, ch->thrust, ch->gravity, ch->maxVelocity);
     player_set_hitbox(p, ch->hitbox_w, ch->hitbox_h, ch->hitbox_offset_x, ch->hitbox_offset_y);
     game_render_load_sprites(ch);
 }
 
+/* Traced step by step: the crash lands somewhere between selecting a character
+   and the first drawn frame, and printf reaches Dolphin's log via OSReport. */
 static void start_run(Player *p) {
+    printf("start_run: begin\n");
     frame_count = 0;
-    shooting_stars_reset();
-    scoring_reset();
-    obstacles_init();
-    player_init(p);
-    apply_character(p);
+    shooting_stars_reset();      printf("start_run: shooting stars reset\n");
+    scoring_reset();             printf("start_run: scoring reset\n");
+    obstacles_init();            printf("start_run: obstacles init\n");
+    player_init(p);              printf("start_run: player init\n");
+    apply_character(p);          printf("start_run: character applied\n");
+    printf("start_run: done\n");
 }
 
 /* A degraded start is the difference between real art and placeholder boxes.
@@ -143,10 +149,15 @@ static int handle_character_select(Player *player) {
         return 0;
     }
     if (input_start_pressed()) {
+        printf("select: choosing %d\n", char_cursor);
         characters_set_current(char_cursor);
+        printf("select: saving settings\n");
         settings_set_character(char_cursor);
+        printf("select: applying character\n");
         apply_character(player);
+        printf("select: sfx\n");
         audio_play_sfx(SFX_BUTTON2);
+        printf("select: done\n");
         char_select_open = 0;
         return 1;
     }
@@ -155,6 +166,7 @@ static int handle_character_select(Player *player) {
 
 static void update_playing(GameStateMachine *gs, Player *player) {
     frame_count++;
+    if (frame_count == 1) printf("update_playing: first frame entered\n");
 
     if (player_update(player, input_thrust_pressed(), SCREEN_HEIGHT)) {
         audio_play_sfx(SFX_CRASH);
@@ -208,6 +220,7 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     renderer_finish();
 
     if (trace) printf("trace: first frame complete\n");
+    if (frame_count == 2) printf("trace: second frame complete -- gameplay is running\n");
 }
 
 int main(int argc, char **argv) {
@@ -221,8 +234,11 @@ int main(int argc, char **argv) {
         .overscan_pct = OVERSCAN_PCT
     };
     /* Sends printf to the OSReport channel, which Dolphin captures in its log.
-       Free diagnostics for anyone who turns logging on. */
+       Unbuffered, or the line written immediately before a crash -- the one that
+       matters most -- dies in the buffer with it. */
     SYS_STDIO_Report(true);
+    setvbuf(stdout, NULL, _IONBF, 0);
+    printf("=== moonlight drift starting ===\n");
 
     int init_status = magnolia_init(&cfg);
     /* -2 means video never came up; every draw call below would be undefined. */
