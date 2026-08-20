@@ -93,6 +93,37 @@ make
 ls build/moonlight-drift.dol    # ~2MB Wii executable
 ```
 
+### Running in Dolphin
+
+Two separate things have to be right, and getting only one of them right is the
+usual cause of "it looks like the old build" or missing artwork:
+
+**1. The `.dol` Dolphin opens.** Use the current build, not a copy made earlier:
+
+```
+\\wsl$\Ubuntu\home\magma\game_dev\moonlight-drift-wii\build\moonlight-drift.dol
+```
+
+**2. The SD card Dolphin emulates.** This is where `sd:/apps/moonlight-drift/...`
+resolves — opening the `.dol` does *not* give Dolphin the sprites or audio.
+Enable SD in Dolphin (Config → Wii → Insert SD Card) and point it at a folder
+whose root contains `apps/moonlight-drift/` with `sprites/` and `audio/` inside.
+
+`make deploy` stages exactly that layout:
+
+```
+sdcard/
+└── apps/moonlight-drift/
+    ├── boot.dol
+    ├── meta.xml
+    ├── sprites/   (48 PNGs)
+    └── audio/     (4 PCM files)
+```
+
+If the card is missing or incomplete the game still boots, and a **startup
+report** screen lists which of SD, font, sprites and audio came up. That screen
+is the fastest way to tell an asset problem from a code problem.
+
 ### Deploy to SD Card
 
 ```

@@ -43,23 +43,44 @@ static void start_run(Player *p) {
     apply_character(p);
 }
 
-/* A degraded start is the difference between real art and placeholder boxes, so
-   say what failed rather than leaving it a mystery on the TV. */
-static void show_startup_warning(void) {
-    for (int i = 0; i < 240; i++) {
+/* A degraded start is the difference between real art and placeholder boxes.
+   Report every subsystem and wait for input rather than timing out, so one
+   photo of the screen explains the whole boot. */
+static void show_startup_report(void) {
+    const u32 WHITE_C = RGBA(255, 255, 255, 255);
+    const u32 GOOD    = RGBA(46, 204, 113, 255);
+    const u32 BAD     = RGBA(255, 90, 90, 255);
+    const u32 DIM_C   = RGBA(160, 160, 160, 255);
+
+    int sd    = magnolia_sd_mounted();
+    int font  = magnolia_fonts_loaded();
+    int art   = game_render_sprites_loaded();
+    int sound = audio_music_loaded();
+
+    while (1) {
         game_draw_background();
         ui_draw_border();
-        ui_draw_centered_text(180, "STARTUP WARNING", 20, RGBA(255, 215, 0, 255));
-        if (!magnolia_sd_mounted()) {
-            ui_draw_centered_text(220, "SD card not mounted", 14, RGBA(255, 255, 255, 255));
-            ui_draw_centered_text(245, "sprites/scores unavailable", 12, RGBA(160, 160, 160, 255));
+        ui_draw_centered_text(60, "STARTUP REPORT", 20, RGBA(255, 215, 0, 255));
+
+        ui_draw_centered_text(120, sd    ? "SD CARD: mounted"    : "SD CARD: NOT MOUNTED", 13, sd    ? GOOD : BAD);
+        ui_draw_centered_text(150, font  ? "FONT: loaded"        : "FONT: FAILED",         13, font  ? GOOD : BAD);
+        ui_draw_centered_text(180, art   ? "SPRITES: loaded"     : "SPRITES: NOT FOUND",   13, art   ? GOOD : BAD);
+        ui_draw_centered_text(210, sound ? "AUDIO: loaded"       : "AUDIO: NOT FOUND",     13, sound ? GOOD : BAD);
+
+        if (!sd) {
+            ui_draw_centered_text(258, "Assets live on the SD card at", 11, DIM_C);
+            ui_draw_centered_text(276, "apps/" APP_NAME "/", 11, WHITE_C);
+            ui_draw_centered_text(300, "In Dolphin, enable SD and point it", 11, DIM_C);
+            ui_draw_centered_text(318, "at the folder holding apps/", 11, DIM_C);
         }
-        if (!magnolia_fonts_loaded()) {
-            ui_draw_centered_text(275, "font failed to load", 14, RGBA(255, 255, 255, 255));
-        }
+
+        ui_draw_centered_text(390, "The game still runs without them.", 11, DIM_C);
+        ui_draw_centered_text(420, "Press A to continue", 12, WHITE_C);
         renderer_finish();
+
         input_scan();
         if (input_start_pressed()) break;
+        if (input_home_pressed()) break;
     }
 }
 
@@ -159,6 +180,8 @@ int main(int argc, char **argv) {
         .overscan_pct = OVERSCAN_PCT
     };
     int init_status = magnolia_init(&cfg);
+    /* -2 means video never came up; every draw call below would be undefined. */
+    if (init_status == -2) return 1;
 
     input_init();
     obstacles_init();
@@ -185,7 +208,7 @@ int main(int argc, char **argv) {
     GameStateMachine gs;
     gamestate_init(&gs);
 
-    if (init_status != 0) show_startup_warning();
+    if (init_status != 0 || !game_render_sprites_loaded()) show_startup_report();
 
     while (1) {
         input_scan();

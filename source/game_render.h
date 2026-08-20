@@ -10,6 +10,8 @@
 
 void game_render_load_sprites(const CharacterData *ch);
 void game_render_free_sprites(void);
+/* Whether the current character's idle+thrust pair actually loaded. */
+int  game_render_sprites_loaded(void);
 
 /* Idle portraits for every character, for the selector grid. Loading 24 files
    off SD is slow enough to look like a hang, so this draws a progress frame

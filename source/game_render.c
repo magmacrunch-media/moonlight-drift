@@ -29,6 +29,8 @@ void game_render_load_sprites(const CharacterData *ch) {
     sprites_ready = ok_idle && ok_thrust;
 }
 
+int game_render_sprites_loaded(void) { return sprites_ready; }
+
 void game_render_free_sprites(void) {
     sprite_free(&spr_idle);
     sprite_free(&spr_thrust);
