@@ -6,6 +6,7 @@
 #include "config.h"
 #include "characters.h"
 #include "player.h"
+#include "playfield.h"
 #include "stars.h"
 #include "obstacles.h"
 #include "obstacle_renderer.h"
@@ -125,7 +126,7 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     frame_count++;
     if (frame_count == 1) printf("update_playing: first frame entered\n");
 
-    if (player_update(player, input_a_held(), SCREEN_HEIGHT)) {
+    if (player_update(player, input_a_held(), WORLD_HEIGHT)) {
 #if DEBUG_IMMORTAL
         player->y = PLAYER_Y_INITIAL;
         player->velocity = 0.0f;
@@ -137,9 +138,9 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     }
 
     if (frame_count % OBSTACLE_SPAWN_INTERVAL == 0) {
-        obstacles_create(CANVAS_WIDTH, CANVAS_HEIGHT);
+        obstacles_create(pf_world_width(), WORLD_HEIGHT);
     }
-    obstacles_update(CANVAS_WIDTH);
+    obstacles_update(pf_world_width());
 
     if (obstacles_check_collision((int)player->x + player->offsetX,
                                   (int)player->y + player->offsetY,
@@ -155,7 +156,7 @@ static void update_playing(GameStateMachine *gs, Player *player) {
     for (int i = 0; i < score_inc; i++) scoring_increment();
 
     stars_update();
-    shooting_stars_update(CANVAS_WIDTH, CANVAS_HEIGHT);
+    shooting_stars_update(pf_world_width(), WORLD_HEIGHT);
 
     game_draw_background();
     game_draw_stars();
@@ -193,13 +194,24 @@ int main(int argc, char **argv) {
     /* -2 means video never came up; every draw call below would be undefined. */
     if (init_status == -2) return 1;
 
+    /* The projection needs the video mode and the safe area, both settled by
+       magnolia_init(); everything that places something in the world needs the
+       projection. */
+    pf_init();
+
     input_init();
     obstacles_init();
-    stars_init();
+    stars_init(pf_world_width(), WORLD_HEIGHT);
     characters_init();
     ui_init();
 
     audio_init();
+    /* The web mixes music at 0.3 and effects at 0.4-0.5 (see loadAudio() in
+       js/main.js). At the engine default everything plays flat out, and an
+       11-second music loop at full scale simply buries the crash. Both are
+       sampled when a voice starts, so they belong ahead of the first play. */
+    audio_set_music_volume(77);    /* 0.3 */
+    audio_set_sfx_volume(115);     /* 0.45, splitting the web's two effect levels */
     audio_load_sfx_mem(SFX_CRASH,   crash_pcm,   crash_pcm_size);
     audio_load_sfx_mem(SFX_BUTTON1, button1_pcm, button1_pcm_size);
     audio_load_sfx_mem(SFX_BUTTON2, button2_pcm, button2_pcm_size);

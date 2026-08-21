@@ -3,6 +3,8 @@
 #include "magnolia.h"
 #include "game_render.h"
 #include "stars.h"
+#include "playfield.h"
+#include "config.h"
 
 #define MAX_PORTRAITS 32
 
@@ -92,14 +94,17 @@ void game_draw_portrait(int index, float x, float y, float scale) {
 void game_draw_background(void) {
     renderer_draw_background();
 
-    /* Cyan rules on the lethal top/bottom edges, as drawBackground() does in
-       the source game. On a TV these also show where the kill boundary is once
-       overscan eats the outer rows. */
-    int w = renderer_screen_width();
-    int h = renderer_screen_height();
+    /* Cyan rules on the lethal top and bottom edges, as drawBackground() does in
+       the source game. They are drawn at the edges of the *world*, not the
+       framebuffer: those are the lines player_update() kills at, and the two
+       stopped agreeing the moment the picture was not exactly 480 tall. Framed
+       this way they also survive overscan, so a CRT no longer hides the
+       boundary you die on. */
+    float x0 = pf_x(0.0f);
+    float x1 = pf_x((float)pf_world_width());
     u32 edge = RGBA(0, 212, 255, 77);
-    GRRLIB_Rectangle(0, 0, (f32)w, 2, edge, true);
-    GRRLIB_Rectangle(0, (f32)(h - 2), (f32)w, 2, edge, true);
+    GRRLIB_Rectangle(x0, pf_y(0.0f), x1 - x0, 2, edge, true);
+    GRRLIB_Rectangle(x0, pf_y((float)WORLD_HEIGHT) - 2, x1 - x0, 2, edge, true);
 }
 
 static void px(int x, int y, int w, int h, u32 c) {
@@ -148,6 +153,11 @@ static void draw_star_pattern(int pattern, int x, int y, u32 c) {
     }
 }
 
+/* Stars are positioned in the world but drawn at framebuffer scale. The
+   patterns above are runs of single pixels; put them through pf_w() at roughly
+   0.59 and a one-pixel star becomes a sub-pixel rectangle that renders as
+   nothing -- taking the chunky SNES look, which is the entire point of the
+   module, with it. Position is what has to move with the field; size is not. */
 void game_draw_stars(void) {
     Star *s;
     for (int i = 0; i < stars_get_count(); i++) {
@@ -156,7 +166,7 @@ void game_draw_stars(void) {
 
         /* Pulsing stars dim via alpha, matching the web's '88' suffix. */
         u8 alpha = (s->is_pulsing && s->pulse_state == 0) ? 136 : 255;
-        draw_star_pattern(s->pattern, s->x, s->y,
+        draw_star_pattern(s->pattern, (int)pf_x((float)s->x), (int)pf_y((float)s->y),
                           RGBA(s->color_r, s->color_g, s->color_b, alpha));
     }
 
@@ -172,8 +182,8 @@ void game_draw_stars(void) {
         for (int t = 0; t < 8; t++) {
             int a = (int)((1.0f - (float)t / 8.0f) * 255.0f);
             if (a <= 50) continue;
-            int tx = (int)(sh->x + t * 2.0f);
-            int ty = (int)(sh->y + t * 0.4f);
+            int tx = (int)pf_x(sh->x + t * 2.0f);
+            int ty = (int)pf_y(sh->y + t * 0.4f);
             px(tx, ty, 2, 2, RGBA(r, g, b, (u8)a));
             if (t < 3) {                            /* glow on the leading end */
                 px(tx - 1, ty, 1, 2, RGBA(r, g, b, 68));
@@ -185,9 +195,14 @@ void game_draw_stars(void) {
 
 void game_draw_player(const Player *p, int thrust_active) {
     if (sprites_ready) {
-        sprite_draw(thrust_active ? &spr_thrust : &spr_idle, p->x, p->y);
+        /* Two factors, not one: on 16:9 the framebuffer is stretched, so a scale
+           that is right vertically is a third too wide. */
+        sprite_draw_scaled_xy(thrust_active ? &spr_thrust : &spr_idle,
+                              pf_x(p->x), pf_y(p->y),
+                              pf_scale_x(), pf_scale_y());
     } else {
-        GRRLIB_Rectangle(p->x, p->y, (f32)p->width, (f32)p->height,
+        GRRLIB_Rectangle(pf_x(p->x), pf_y(p->y),
+                         pf_w((f32)p->width), pf_h((f32)p->height),
                          RGBA(255, 255, 255, 255), true);
     }
 }

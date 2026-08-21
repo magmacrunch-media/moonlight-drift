@@ -113,11 +113,16 @@ void ui_draw_ready(void) {
     game_draw_stars();
     ui_draw_border();
 
-    ui_draw_centered_text(180, "HOW TO PLAY", 24, CYAN);
-    ui_draw_centered_text(230, "Hold A to thrust", 16, WHITE);
-    ui_draw_centered_text(260, "Release to fall", 16, WHITE);
-    ui_draw_centered_text(290, "Dodge obstacles!", 16, WHITE);
-    ui_draw_centered_text(360, "Press A to start", 16, DIM);
+    /* The readyOverlay in the web build names the boundaries as well as the
+       obstacles, and it is the only place the game ever says the top and bottom
+       edges are lethal. Dropping that line left the one rule nobody guesses
+       unstated. */
+    ui_draw_centered_text(170, "HOW TO PLAY", 24, CYAN);
+    ui_draw_centered_text(220, "Hold A to thrust", 16, WHITE);
+    ui_draw_centered_text(250, "Release to fall", 16, WHITE);
+    ui_draw_centered_text(280, "Avoid the obstacles", 16, WHITE);
+    ui_draw_centered_text(310, "and the boundaries!", 16, WHITE);
+    ui_draw_centered_text(380, "Press A to start", 16, DIM);
 
     renderer_finish();
 }
@@ -132,6 +137,9 @@ void ui_draw_game_over(int score, int is_high_score, int rank) {
     char score_buf[32];
     snprintf(score_buf, sizeof(score_buf), "Score: %d", score);
     ui_draw_centered_text(190, score_buf, 20, CYAN);
+
+    /* The web prints this under every score, high or not. */
+    ui_draw_centered_text(224, "too cheap for ya?!", 12, DIM);
 
     if (is_high_score) {
         /* Ranked tiers as in showGameOverAchievement(). The web wraps these in

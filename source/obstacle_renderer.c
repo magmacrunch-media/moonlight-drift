@@ -6,6 +6,16 @@
 #include "config.h"
 #include "renderer.h"
 #include "ui_utils.h"
+#include "playfield.h"
+
+/* Every rectangle in this file is stated in world units -- the stripe heights,
+   the taper widths, the sin() offsets are all lifted from js/obstacles.js and
+   have to stay in the space that collision reads them in. One projection at the
+   draw call is what keeps the drawn column and the column you crash into the
+   same shape. */
+static void wrect(float wx, float wy, float ww, float wh, u32 c, bool filled) {
+    GRRLIB_Rectangle(pf_x(wx), pf_y(wy), pf_w(ww), pf_h(wh), c, filled);
+}
 
 static u32 theme_color(ThemeColor c, u8 alpha) {
     return RGBA(c.r, c.g, c.b, alpha);
@@ -32,11 +42,11 @@ static void draw_obstacle_top(Obstacle *o) {
                 else if (si == 1) sc = theme_color(o->theme.secondary, 255);
                 else sc = theme_color(o->theme.accent, 255);
 
-                GRRLIB_Rectangle(x, (f32)y, w, (f32)stripe_h, sc, true);
+                wrect(x, (f32)y, w, (f32)stripe_h, sc, true);
 
                 u32 hl = theme_color(o->theme.accent, 255);
                 float hlw = fmaxf(4.0f, w * 0.2f);
-                GRRLIB_Rectangle(x + 3, (f32)y, hlw, (f32)stripe_h, hl, true);
+                wrect(x + 3, (f32)y, hlw, (f32)stripe_h, hl, true);
             }
             float tip_y = fmaxf(0.0f, (float)o->top_height - 16.0f);
             float tip_w = w * 0.4f;
@@ -44,7 +54,7 @@ static void draw_obstacle_top(Obstacle *o) {
                 float tw = tip_w * (1.0f - (float)i / 16.0f);
                 if (tip_y + i < o->top_height) {
                     u32 tc = theme_color(o->theme.accent, 255);
-                    GRRLIB_Rectangle(cx - tw / 2, tip_y + i, tw, 2, tc, true);
+                    wrect(cx - tw / 2, tip_y + i, tw, 2, tc, true);
                 }
             }
             break;
@@ -68,15 +78,15 @@ static void draw_obstacle_top(Obstacle *o) {
                 else if (cp == 1) fc = theme_color(o->theme.secondary, 255);
                 else fc = theme_color(o->theme.accent, 255);
 
-                GRRLIB_Rectangle(x, (f32)y, w, (f32)facet_h, fc, true);
+                wrect(x, (f32)y, w, (f32)facet_h, fc, true);
 
                 if (angle > 0.2f) {
                     float hw = w * 0.35f;
-                    GRRLIB_Rectangle(x, (f32)y, hw, (f32)facet_h,
+                    wrect(x, (f32)y, hw, (f32)facet_h,
                                      theme_color(o->theme.accent, 255), true);
                 } else if (angle < -0.2f) {
                     float hw = w * 0.35f;
-                    GRRLIB_Rectangle(x + w - hw, (f32)y, hw, (f32)facet_h,
+                    wrect(x + w - hw, (f32)y, hw, (f32)facet_h,
                                      theme_color(o->theme.accent, 255), true);
                 }
             }
@@ -84,7 +94,7 @@ static void draw_obstacle_top(Obstacle *o) {
             for (int i = 0; i < 12; i += 2) {
                 float tw = (w * 0.4f) * (1.0f - (float)i / 12.0f);
                 if (tip_y + i < o->top_height) {
-                    GRRLIB_Rectangle(cx - tw / 2, tip_y + i, tw, 2,
+                    wrect(cx - tw / 2, tip_y + i, tw, 2,
                                      theme_color(o->theme.accent, 255), true);
                 }
             }
@@ -109,22 +119,22 @@ static void draw_obstacle_top(Obstacle *o) {
                 else if (cs == 1) bc = theme_color(o->theme.secondary, 255);
                 else bc = theme_color(o->theme.accent, 255);
 
-                GRRLIB_Rectangle(x, (f32)y, w, (f32)bh, bc, true);
+                wrect(x, (f32)y, w, (f32)bh, bc, true);
 
                 int has_jut = sinf(o->seed * 400.0f + bi) > 0.6f;
                 if (has_jut) {
                     float jw = 6.0f + sinf(o->seed * 500.0f + bi) * 4.0f;
                     if (jw < 2.0f) jw = 2.0f;
                     if (cosf(o->seed * 150.0f + bi) > 0) {
-                        GRRLIB_Rectangle(x - jw, y + 2, jw, bh - 4,
+                        wrect(x - jw, y + 2, jw, bh - 4,
                                          theme_color(o->theme.accent, 255), true);
                     } else {
-                        GRRLIB_Rectangle(x + w, y + 2, jw, bh - 4,
+                        wrect(x + w, y + 2, jw, bh - 4,
                                          theme_color(o->theme.accent, 255), true);
                     }
                 }
 
-                GRRLIB_Rectangle(x + 2, (f32)y, 4, (f32)bh,
+                wrect(x + 2, (f32)y, 4, (f32)bh,
                                  theme_color(o->theme.accent, 255), true);
             }
             float tip_y = fmaxf(0.0f, (float)o->top_height - 14.0f);
@@ -132,7 +142,7 @@ static void draw_obstacle_top(Obstacle *o) {
                 float tw = (w * 0.35f) * (1.0f - (float)i / 14.0f);
                 float wb = sinf(o->seed * 100.0f + i) * 2.0f;
                 if (tip_y + i < o->top_height) {
-                    GRRLIB_Rectangle(cx - tw / 2 + wb, tip_y + i, tw, 2,
+                    wrect(cx - tw / 2 + wb, tip_y + i, tw, 2,
                                      theme_color(o->theme.accent, 255), true);
                 }
             }
@@ -144,7 +154,7 @@ static void draw_obstacle_top(Obstacle *o) {
 static void draw_obstacle_bottom(Obstacle *o) {
     float cx = o->x + OBSTACLE_WIDTH / 2.0f;
     float bot_start = (float)o->bottom_y;
-    float bot_len = (float)(CANVAS_HEIGHT - o->bottom_y);
+    float bot_len = (float)(WORLD_HEIGHT - o->bottom_y);
 
     switch (o->style_index) {
         case 0: {
@@ -164,16 +174,16 @@ static void draw_obstacle_bottom(Obstacle *o) {
                 else if (si == 1) sc = theme_color(o->theme.secondary, 255);
                 else sc = theme_color(o->theme.accent, 255);
 
-                GRRLIB_Rectangle(x, bot_start + y, w, (f32)stripe_h, sc, true);
+                wrect(x, bot_start + y, w, (f32)stripe_h, sc, true);
 
                 float hlw = fmaxf(4.0f, w * 0.2f);
-                GRRLIB_Rectangle(x + w - hlw - 3, bot_start + y, hlw, (f32)stripe_h,
+                wrect(x + w - hlw - 3, bot_start + y, hlw, (f32)stripe_h,
                                  theme_color(o->theme.accent, 255), true);
             }
             for (int i = 0; i < 16; i += 2) {
                 float tw = 22.0f * 0.4f * ((float)i / 16.0f);
                 if (i < (int)bot_len) {
-                    GRRLIB_Rectangle(cx - tw / 2, bot_start + i, tw, 2,
+                    wrect(cx - tw / 2, bot_start + i, tw, 2,
                                      theme_color(o->theme.accent, 255), true);
                 }
             }
@@ -198,22 +208,22 @@ static void draw_obstacle_bottom(Obstacle *o) {
                 else if (cp == 1) fc = theme_color(o->theme.secondary, 255);
                 else fc = theme_color(o->theme.accent, 255);
 
-                GRRLIB_Rectangle(x, bot_start + y, w, (f32)facet_h, fc, true);
+                wrect(x, bot_start + y, w, (f32)facet_h, fc, true);
 
                 if (angle > 0.2f) {
                     float hw = w * 0.35f;
-                    GRRLIB_Rectangle(x, bot_start + y, hw, (f32)facet_h,
+                    wrect(x, bot_start + y, hw, (f32)facet_h,
                                      theme_color(o->theme.accent, 255), true);
                 } else if (angle < -0.2f) {
                     float hw = w * 0.35f;
-                    GRRLIB_Rectangle(x + w - hw, bot_start + y, hw, (f32)facet_h,
+                    wrect(x + w - hw, bot_start + y, hw, (f32)facet_h,
                                      theme_color(o->theme.accent, 255), true);
                 }
             }
             for (int i = 0; i < 12; i += 2) {
                 float tw = (w * 0.4f) * ((float)i / 12.0f);
                 if (i < (int)bot_len) {
-                    GRRLIB_Rectangle(cx - tw / 2, bot_start + i, tw, 2,
+                    wrect(cx - tw / 2, bot_start + i, tw, 2,
                                      theme_color(o->theme.accent, 255), true);
                 }
             }
@@ -238,29 +248,29 @@ static void draw_obstacle_bottom(Obstacle *o) {
                 else if (cs == 1) bc = theme_color(o->theme.secondary, 255);
                 else bc = theme_color(o->theme.accent, 255);
 
-                GRRLIB_Rectangle(x, bot_start + y, w, (f32)bh, bc, true);
+                wrect(x, bot_start + y, w, (f32)bh, bc, true);
 
                 int has_jut = cosf(o->seed * 380.0f + bi) > 0.6f;
                 if (has_jut) {
                     float jw = 6.0f + cosf(o->seed * 480.0f + bi) * 4.0f;
                     if (jw < 2.0f) jw = 2.0f;
                     if (sinf(o->seed * 140.0f + bi) > 0) {
-                        GRRLIB_Rectangle(x - jw, bot_start + y + 2, jw, bh - 4,
+                        wrect(x - jw, bot_start + y + 2, jw, bh - 4,
                                          theme_color(o->theme.accent, 255), true);
                     } else {
-                        GRRLIB_Rectangle(x + w, bot_start + y + 2, jw, bh - 4,
+                        wrect(x + w, bot_start + y + 2, jw, bh - 4,
                                          theme_color(o->theme.accent, 255), true);
                     }
                 }
 
-                GRRLIB_Rectangle(x + w - 6, bot_start + y, 4, (f32)bh,
+                wrect(x + w - 6, bot_start + y, 4, (f32)bh,
                                  theme_color(o->theme.accent, 255), true);
             }
             for (int i = 0; i < 14; i += 2) {
                 float tw = (w * 0.35f) * ((float)i / 14.0f);
                 float wb = cosf(o->seed * 90.0f + i) * 2.0f;
                 if (i < (int)bot_len) {
-                    GRRLIB_Rectangle(cx - tw / 2 + wb, bot_start + i, tw, 2,
+                    wrect(cx - tw / 2 + wb, bot_start + i, tw, 2,
                                      theme_color(o->theme.accent, 255), true);
                 }
             }
@@ -277,11 +287,12 @@ static void draw_milestone_marker(Obstacle *o) {
     ThemeColor comp_c = theme_complementary(&o->theme);
     u32 comp = theme_color(comp_c, 255);
     float cx = o->x + OBSTACLE_WIDTH / 2.0f;
-    int screen_h = renderer_screen_height();
 
-    /* 8-on/8-off dashes, drawn manually since GX has no line-dash state. */
-    for (int y = 0; y < screen_h; y += 16) {
-        GRRLIB_Rectangle(cx - 2.0f, (f32)y, 4, 8, comp, true);
+    /* 8-on/8-off dashes, drawn manually since GX has no line-dash state. The
+       rule spans the world, not the picture -- it marks the full height of the
+       playfield the way the web strokes 0..canvasHeight. */
+    for (int y = 0; y < WORLD_HEIGHT; y += 16) {
+        wrect(cx - 2.0f, (f32)y, 4, 8, comp, true);
     }
 
     char text[16];
@@ -292,18 +303,22 @@ static void draw_milestone_marker(Obstacle *o) {
     float box_x = cx - box_w / 2.0f;
     float box_y = text_y - box_h / 2.0f;
 
-    GRRLIB_Rectangle(box_x - 4, box_y - 4, box_w + 8, box_h + 8,
+    wrect(box_x - 4, box_y - 4, box_w + 8, box_h + 8,
                      RGBA(26, 26, 46, 255), true);
-    GRRLIB_Rectangle(box_x, box_y, box_w, box_h, RGBA(26, 26, 46, 230), true);
-    GRRLIB_Rectangle(box_x - 2, box_y - 2, box_w + 4, box_h + 4, comp, false);
-    GRRLIB_Rectangle(box_x + 2, box_y + 2, box_w - 4, box_h - 4,
+    wrect(box_x, box_y, box_w, box_h, RGBA(26, 26, 46, 230), true);
+    wrect(box_x - 2, box_y - 2, box_w + 4, box_h + 4, comp, false);
+    wrect(box_x + 2, box_y + 2, box_w - 4, box_h - 4,
                      theme_color(o->theme.secondary, 255), false);
 
     if (ttf_font) {
-        unsigned int size = 20;
+        /* Glyphs are rasterised at a pixel size, so the 20pt of the web has to
+           be scaled here rather than projected like a rectangle. Floored at 8:
+           past that FreeType has no pixels left to make a digit out of. */
+        unsigned int size = (unsigned int)(20.0f * pf_scale_y());
+        if (size < 8) size = 8;
         u32 tw = GRRLIB_WidthTTF(ttf_font, text, size);
-        float tx = cx - tw / 2.0f;
-        float ty = text_y - size / 2.0f;
+        float tx = pf_x(cx) - tw / 2.0f;
+        float ty = pf_y(text_y) - size / 2.0f;
         GRRLIB_PrintfTTF(tx + 2, ty + 2, ttf_font, text, size, RGBA(0, 0, 0, 255));
         GRRLIB_PrintfTTF(tx, ty, ttf_font, text, size, comp);
     }
@@ -330,11 +345,11 @@ void obstacle_draw_all(void) {
                 sy = (float)o->bottom_y + fmodf(o->seed * 300.0f, 1.0f) * 100.0f;
             }
             u32 wc = RGBA(255, 255, 255, 255);
-            GRRLIB_Rectangle(sx,        sy,        2, 2, wc, true);
-            GRRLIB_Rectangle(sx - 3.0f, sy,        2, 2, wc, true);
-            GRRLIB_Rectangle(sx + 3.0f, sy,        2, 2, wc, true);
-            GRRLIB_Rectangle(sx,        sy - 3.0f, 2, 2, wc, true);
-            GRRLIB_Rectangle(sx,        sy + 3.0f, 2, 2, wc, true);
+            wrect(sx,        sy,        2, 2, wc, true);
+            wrect(sx - 3.0f, sy,        2, 2, wc, true);
+            wrect(sx + 3.0f, sy,        2, 2, wc, true);
+            wrect(sx,        sy - 3.0f, 2, 2, wc, true);
+            wrect(sx,        sy + 3.0f, 2, 2, wc, true);
         }
     }
 

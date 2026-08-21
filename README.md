@@ -1,8 +1,9 @@
 # Moonlight Drift — Nintendo Wii Port
 
 **Project:** Port [Moonlight Drift](https://magmacrunch.com/arcade/moonlight-drift/) (Jetman-style arcade game) to a homebrewed Nintendo Wii
-**Engine:** [magnolia](https://github.com/magmacrunchmedia/magnolia) `>= v0.2.0` — shared Wii game engine
-**Status:** Phases 1–7 complete — 24 characters, selector grid, audio, TV-safe UI, persistence
+**Engine:** [magnolia](https://github.com/magmacrunchmedia/magnolia) `>= v0.3.0` — shared Wii game engine
+**Status:** Phases 1–8 complete — 24 characters, selector grid, audio, TV-safe UI,
+persistence, and a world-space playfield that matches the arcade version's geometry
 
 ---
 
@@ -29,7 +30,8 @@ moonlight-drift-wii/
 ├── Moonlight-Drift-Wii.md       # Full design document
 ├── source/
 │   ├── main.c                   # Entry point; drives magnolia's GameStateMachine
-│   ├── config.h                 # Game constants, APP_NAME, overscan
+│   ├── config.h                 # World constants, APP_NAME, overscan
+│   ├── playfield.c/.h           # World (1280x720) -> screen projection
 │   ├── player.c/.h              # Jetman physics (thrust, gravity, boundary)
 │   ├── stars.c/.h               # Blinking starfield
 │   ├── characters.c/.h          # Character roster, hitboxes, sprite origins
@@ -66,10 +68,10 @@ the rule on what belongs where.
 ### Prerequisites
 
 - devkitPro installed at `/opt/devkitpro/`
-- magnolia `>= v0.2.0` cloned at `../magnolia` relative to this project.
+- magnolia `>= v0.3.0` cloned at `../magnolia` relative to this project.
   There is no version pinning between the two repos yet, so if the engine has
   moved on and the game stops building, check out the matching engine tag:
-  `git -C ../magnolia checkout v0.2.0`
+  `git -C ../magnolia checkout v0.3.0`
 - SSH access to MC1 (Windows PC running WSL2 Ubuntu)
 
 ### Build Commands
@@ -251,6 +253,73 @@ ffmpeg -i in.ogg -f s16le -acodec pcm_s16le -ar 48000 -ac 2 out.pcm
 Clips are held in main RAM (~2.4MB). Converting the music to 32kHz mono would
 cut it to ~710KB if that ever matters.
 
+The mix matches `loadAudio()` in `js/main.js` — music at 0.3, effects at
+0.4–0.5 — set through the engine before anything plays. At the engine default
+every voice runs flat out and an eleven-second music loop simply buries the
+crash.
+
+| Voice | Web | `audio_set_*_volume()` |
+|-------|-----|------------------------|
+| Music | 0.30 | 77 |
+| Effects | 0.40–0.50 | 115 |
+
+## Playfield
+
+The web build's canvas is **1280×720**, and that is the only coordinate space
+the simulation knows. `GAP`, `OBSTACLE_WIDTH`, `OBSTACLE_SPEED`, every character
+hitbox — all of them are measurements in it, so physics, collision and scoring
+stay identical to `js/`. `source/playfield.h` projects that world onto the
+framebuffer at draw time; nothing else converts between the two.
+
+This used to be different, and it mattered more than anything else in the port.
+The web constants were run straight onto a 640×480 framebuffer, which is not a
+port of the game so much as a different one:
+
+| | Web (1280×720) | 640×480 field | Now |
+|---|---|---|---|
+| `GAP` as a share of height | 25% | 37.5% | **25%** |
+| Player hitbox as a share of height | 4.9% | 7.3% | **4.9%** |
+| Obstacles on screen at once | ~4 | ~2 | **4** |
+
+The projection fills the **TV-safe rectangle** vertically and lets the width
+follow. That is what keeps the gap and the player at their web proportions, and
+it is also a correctness fix: the top and bottom edges of the world are lethal,
+and drawing them at the framebuffer edge put the kill line behind the bezel on a
+CRT and 48 pixels away from where it actually was on PAL. Both boundary rules
+now come from the same `pf_y()` the death check uses.
+
+The horizontal scale is derived from the pixel aspect ratio rather than assumed,
+which is what lets one code path cover every output:
+
+```
+par   = display_aspect / (fb_width / fb_height)     /* CONF_GetAspectRatio() */
+s_y   = safe_h / 720
+s_x   = s_y / par
+```
+
+| Output | `par` | scale (x, y) | visible world width |
+|---|---|---|---|
+| NTSC 4:3 (640×480) | 1.000 | 0.588, 0.588 | 957 |
+| PAL 4:3 (640×528) | 1.100 | 0.588, 0.647 | 958 |
+| 16:9 (any) | 1.333 | 0.441, 0.588 | 1276 — the whole field |
+
+Both 4:3 modes agree with each other, and a widescreen set gets the arcade
+version's full field for nothing. On 4:3 the cropped ~957 means obstacles arrive
+with three quarters of the web's warning distance; the alternative was
+letterboxing away a third of the screen height.
+
+`pf_init()` prints this line at startup, because every geometry complaint about
+this game reduces to those numbers:
+
+```
+playfield: fb 640x480 safe 564x424+38+28 par 1000/1000 scale 588/1000 x 588/1000 world 957x720
+```
+
+**Stars are the one thing drawn at framebuffer scale.** Their positions move
+with the world, but the patterns stay 1:1 — a one-pixel star through a 0.588
+scale is a sub-pixel rectangle that renders as nothing, and the chunky shapes
+are the entire point of that module.
+
 ## Obstacle Styles
 
 Three visual styles with matching tapered collision:
@@ -274,6 +343,7 @@ Three visual styles with matching tapered collision:
 | 5 — UI & Polish | ✅ | Press Start 2P font, title screen, high scores, initials |
 | 6 — Audio | ✅ | PCM16 music loop + crash/button SFX, mute toggle |
 | 7 — All 24 Characters | ✅ | Full roster + 6×4 selector grid |
+| 8 — Arcade Parity | ✅ | World-space playfield, web audio mix, restored copy |
 
 ---
 
@@ -285,7 +355,8 @@ Three visual styles with matching tapered collision:
 | Input | Keyboard | Wiimote (WPAD) |
 | Audio | Web Audio API (OGG) | libogc ASND (PCM16) |
 | Storage | WebSocket + localStorage | SD card (JSON) |
-| Resolution | 1280×720 | 640×480 |
+| Play field | 1280×720 canvas | Same 1280×720 world, projected (see Playfield) |
+| Framebuffer | n/a | 640×480 NTSC, 640×528 PAL |
 | Characters | Canvas `draw()` | Pre-rendered PNG sprites |
 
 ---

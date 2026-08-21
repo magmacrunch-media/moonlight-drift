@@ -1,11 +1,13 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SCREEN_WIDTH        640
-#define SCREEN_HEIGHT       480
-
-#define CANVAS_WIDTH        640
-#define CANVAS_HEIGHT       480
+/* The source game's canvas, and the only coordinate space the simulation knows.
+   Every constant below is a measurement in it, straight from js/config.js and
+   the js/characters modules. source/playfield.h projects it onto the framebuffer;
+   the framebuffer's own size is deliberately not named here, because the moment
+   both spaces have constants in the same header they get mixed. */
+#define WORLD_WIDTH         1280
+#define WORLD_HEIGHT        720
 
 #define GAP                 180
 #define OBSTACLE_WIDTH      60
@@ -13,7 +15,7 @@
 #define OBSTACLE_SPAWN_INTERVAL  120
 
 #define PLAYER_X            80
-#define PLAYER_Y_INITIAL    200
+#define PLAYER_Y_INITIAL    300
 
 #define DEFAULT_THRUST      -0.6f
 #define DEFAULT_GRAVITY     0.4f
@@ -21,7 +23,7 @@
 
 #define FLAME_HEIGHT        15
 #define MIN_OBSTACLE_HEIGHT 50
-#define MAX_OBSTACLE_HEIGHT (SCREEN_HEIGHT - GAP - MIN_OBSTACLE_HEIGHT)
+#define MAX_OBSTACLE_HEIGHT (WORLD_HEIGHT - GAP - MIN_OBSTACLE_HEIGHT)
 
 #define THEME_CHANGE_INTERVAL   10
 

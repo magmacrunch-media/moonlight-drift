@@ -20,11 +20,13 @@ static const u8 star_palette[][3] = {
 };
 #define STAR_PALETTE_SIZE ((int)(sizeof(star_palette) / sizeof(star_palette[0])))
 
-void stars_init(void) {
+void stars_init(int world_w, int world_h) {
+    if (world_w < 1) world_w = 1;
+    if (world_h < 1) world_h = 1;
     shooting_stars_reset();
     for (int i = 0; i < STAR_COUNT; i++) {
-        stars[i].x = rand() % CANVAS_WIDTH;
-        stars[i].y = rand() % CANVAS_HEIGHT;
+        stars[i].x = rand() % world_w;
+        stars[i].y = rand() % world_h;
         stars[i].pattern = rand() % STAR_PATTERN_COUNT;
         int c = rand() % STAR_PALETTE_SIZE;
         stars[i].color_r = star_palette[c][0];

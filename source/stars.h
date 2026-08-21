@@ -20,7 +20,9 @@ typedef struct {
     int is_pulsing;
 } Star;
 
-void stars_init(void);
+/* Seeded across the visible world, not the framebuffer -- how much of the
+   1280-wide field is on screen depends on the video mode. */
+void stars_init(int world_w, int world_h);
 void stars_update(void);
 void stars_get(int index, Star **out);
 int  stars_get_count(void);
