@@ -1,5 +1,5 @@
 Moonlight Drift -- Wii port
-Copyright 2026 MagmaCrunch Media
+Copyright 2026 magmacrunch media
 
 
 WHAT THE APACHE LICENSE COVERS
@@ -16,9 +16,9 @@ WHAT IT DOES NOT COVER
 
 The character sprites in sprites/ (48 files, 24 characters), the audio in
 audio/ (4 files), the characters themselves and their names, the game's name,
-and the Moonlight Drift and MagmaCrunch names and marks.
+and the Moonlight Drift and magmacrunch names and marks.
 
-Those are Copyright 2026 MagmaCrunch Media, all rights reserved. They are in the
+Those are Copyright 2026 magmacrunch media, all rights reserved. They are in the
 repository because the game is built from them, not because they are offered for
 reuse. The Apache License does not grant rights to them, and section 6 of that
 licence does not grant trademark rights in any case.
