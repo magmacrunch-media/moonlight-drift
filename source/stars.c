@@ -1,5 +1,12 @@
 #include <stdlib.h>
+/* gctypes is here for `u8` and nothing else, and requiring libogc for one
+   typedef is what kept the starfield off the host test runner. devkitPPC defines
+   GEKKO for the console build; same guard as magnolia's theme.h. */
+#ifdef GEKKO
 #include <gctypes.h>
+#else
+typedef unsigned char u8;
+#endif
 #include "stars.h"
 #include "config.h"
 

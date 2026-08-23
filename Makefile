@@ -2,11 +2,19 @@
 .SUFFIXES:
 .SECONDARY:
 #---------------------------------------------------------------------------------
+# The host tests deliberately need no cross-compiler: requiring devkitPPC to run
+# them would put them out of reach on the machine where they are most useful.
+# Named once, so the guard below and the rules further down cannot drift apart --
+# `make test-player` on a laptop with no cross-compiler has to work too.
+HOST_TESTS := test-obstacles test-player test-characters test-stars
+
+ifeq ($(filter test $(HOST_TESTS),$(MAKECMDGOALS)),)
 ifeq ($(strip $(DEVKITPPC)),)
 $(error "Please set DEVKITPPC. export DEVKITPPC=<path to>devkitPPC")
 endif
 
 include $(DEVKITPPC)/wii_rules
+endif
 
 #---------------------------------------------------------------------------------
 TARGET      := moonlight-drift
@@ -79,7 +87,59 @@ $(filter-out assets.o,$(OFILES)): assets.h
 else
 #---------------------------------------------------------------------------------
 
-.PHONY: $(BUILD) clean run deploy dolphin
+.PHONY: $(BUILD) clean run deploy dolphin test $(HOST_TESTS)
+
+# Stated explicitly: the host-test rules below would otherwise be the first
+# targets in the file, and a bare `make` would run tests instead of building.
+.DEFAULT_GOAL := $(BUILD)
+
+# Host-side tests. Anything in source/ free of libogc runs on the machine you
+# are sitting at, in a second, with no emulator in the loop -- which is where
+# game rules belong, because a rule that is subtly wrong looks exactly like a
+# rule that is right until someone plays far enough to notice.
+#
+# One binary per test file, each naming what it links. The list is the record of
+# which modules are host-clean; a wildcard over source/ would try to link the
+# rendering and fail with something far less informative.
+#
+# Note the plain mkdir rather than an order-only dependency on $(BUILD): here
+# $(BUILD) is the target that cross-compiles the game, not merely a directory,
+# so depending on it would drag devkitPPC into the one target that exists for
+# not needing it.
+HOSTCC     ?= cc
+HOSTCFLAGS := -Wall -Wextra -O2 -I source -I tests -I ../magnolia/source
+
+test: $(HOST_TESTS)
+
+# obstacles.h reaches into the engine for Theme. theme.c is pure arithmetic and
+# its header is guarded, so it links here without dragging libogc in.
+test-obstacles:
+	@mkdir -p $(BUILD)
+	@$(HOSTCC) $(HOSTCFLAGS) -o $(BUILD)/$@ \
+	    tests/test_obstacles.c source/obstacles.c ../magnolia/source/theme.c -lm
+	@$(BUILD)/$@
+
+test-player:
+	@mkdir -p $(BUILD)
+	@$(HOSTCC) $(HOSTCFLAGS) -o $(BUILD)/$@ tests/test_player.c source/player.c -lm
+	@$(BUILD)/$@
+
+# characters.c carries the roster's numbers and its sprite pointers, and the
+# sprites are bin2s symbols that only exist after a console build. The stub is
+# generated from characters.c itself rather than hand-written, so adding a
+# character cannot leave it stale -- the roster is the list.
+test-characters:
+	@mkdir -p $(BUILD)
+	@grep -ohE '[a-z0-9_]+_png' source/characters.c | sort -u | \
+	    sed 's/^/const unsigned char /; s/$$/[1] = {0};/' > $(BUILD)/assets.h
+	@$(HOSTCC) $(HOSTCFLAGS) -I $(BUILD) -o $(BUILD)/$@ \
+	    tests/test_characters.c source/characters.c -lm
+	@$(BUILD)/$@
+
+test-stars:
+	@mkdir -p $(BUILD)
+	@$(HOSTCC) $(HOSTCFLAGS) -o $(BUILD)/$@ tests/test_stars.c source/stars.c -lm
+	@$(BUILD)/$@
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@

@@ -35,6 +35,13 @@ void obstacles_init(void) {
 }
 
 void obstacles_create(int canvas_width, int canvas_height) {
+    /* The height is taken from MAX_OBSTACLE_HEIGHT rather than the argument.
+       Both come out at WORLD_HEIGHT today, so this is not a bug -- but the
+       parameter is a standing invitation to pass something else and expect it
+       to be honoured. Kept for call-site symmetry with the width, and marked
+       unused so it says so rather than tripping -Wextra in the host tests. */
+    (void)canvas_height;
+
     if (obstacle_count >= MAX_OBSTACLES) return;
 
     Obstacle *o = &obstacles[obstacle_count];
@@ -60,6 +67,10 @@ void obstacles_create(int canvas_width, int canvas_height) {
 }
 
 void obstacles_update(int canvas_width) {
+    /* Culling is against the left edge, which is always zero, so the width is
+       not needed here. Same reasoning as obstacles_create(). */
+    (void)canvas_width;
+
     for (int i = obstacle_count - 1; i >= 0; i--) {
         obstacles[i].x -= OBSTACLE_SPEED;
         if (obstacles[i].x + OBSTACLE_WIDTH < 0) {
