@@ -6,7 +6,7 @@
 # them would put them out of reach on the machine where they are most useful.
 # Named once, so the guard below and the rules further down cannot drift apart --
 # `make test-player` on a laptop with no cross-compiler has to work too.
-HOST_TESTS := test-obstacles test-player test-characters test-stars
+HOST_TESTS := test-obstacles test-player test-characters test-stars test-playfield
 
 ifeq ($(filter test $(HOST_TESTS),$(MAKECMDGOALS)),)
 ifeq ($(strip $(DEVKITPPC)),)
@@ -139,6 +139,15 @@ test-characters:
 test-stars:
 	@mkdir -p $(BUILD)
 	@$(HOSTCC) $(HOSTCFLAGS) -o $(BUILD)/$@ tests/test_stars.c source/stars.c -lm
+	@$(BUILD)/$@
+
+# The projection maths, split out of playfield.c so it can run without a
+# console. playfield.c itself still cannot -- it asks libogc what video mode is
+# running -- but the arithmetic it asks about can.
+test-playfield:
+	@mkdir -p $(BUILD)
+	@$(HOSTCC) $(HOSTCFLAGS) -o $(BUILD)/$@ \
+	    tests/test_playfield.c source/projection.c -lm
 	@$(BUILD)/$@
 
 $(BUILD):
