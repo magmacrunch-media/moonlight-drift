@@ -87,11 +87,11 @@ $(filter-out assets.o,$(OFILES)): assets.h
 else
 #---------------------------------------------------------------------------------
 
-.PHONY: $(BUILD) clean run deploy dolphin test $(HOST_TESTS)
+.PHONY: $(BUILD) clean all deploy dolphin card wii test $(HOST_TESTS)
 
 # Stated explicitly: the host-test rules below would otherwise be the first
 # targets in the file, and a bare `make` would run tests instead of building.
-.DEFAULT_GOAL := $(BUILD)
+.DEFAULT_GOAL := all
 
 # Host-side tests. Anything in source/ free of libogc runs on the machine you
 # are sitting at, in a second, with no emulator in the loop -- which is where
@@ -150,43 +150,33 @@ test-playfield:
 	    tests/test_playfield.c source/projection.c -lm
 	@$(BUILD)/$@
 
+all: $(BUILD)
+
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).dol
+	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).dol sdcard
 
-run:
-	wiiload $(TARGET).dol
-
+# Stages a Homebrew Channel app directory. Assets are in the binary, so this is
+# boot.dol and meta.xml -- but the directory is cleared rather than merged,
+# because a leftover file from an older layout is exactly what makes a card
+# ambiguous to debug.
+#
+# This used to copy sprites/ and audio/ onto the card as well, left over from
+# when the game read them from there. It has loaded everything from memory since
+# the bin2s change -- there is not one file read in the whole game -- so those
+# copies were shipping megabytes the game never opened, and warning about
+# directories it does not need.
+SDROOT := sdcard/apps/$(TARGET)
 deploy: $(BUILD)
-	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)
-	@cp $(BUILD)/$(TARGET).dol $(CURDIR)/sdcard/apps/$(TARGET)/boot.dol
-	@cp $(CURDIR)/meta.xml $(CURDIR)/sdcard/apps/$(TARGET)/meta.xml
-	@rm -rf $(CURDIR)/sdcard/apps/$(TARGET)/sprites
-	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)/sprites
-	@echo "Deployed to sdcard/apps/$(TARGET)/"
-	@echo "  boot.dol, meta.xml"
-# Assets are committed, but warn rather than fail if a checkout is partial --
-# the game runs without them, just with placeholder art and silence.
-ifeq ($(wildcard $(CURDIR)/sprites/*.png),)
-	@echo "  WARNING: sprites/ is empty -- characters will draw as white boxes."
-	@echo "  Copy the PNGs into sprites/ before deploying."
-else
-	@cp $(CURDIR)/sprites/*.png $(CURDIR)/sdcard/apps/$(TARGET)/sprites/
-	@echo "  sprites/ ($(words $(wildcard $(CURDIR)/sprites/*.png)) PNGs)"
-endif
-	@rm -rf $(CURDIR)/sdcard/apps/$(TARGET)/audio
-	@mkdir -p $(CURDIR)/sdcard/apps/$(TARGET)/audio
-ifeq ($(wildcard $(CURDIR)/audio/*.pcm),)
-	@echo "  WARNING: audio/ is empty -- the game will run silently."
-else
-	@cp $(CURDIR)/audio/*.pcm $(CURDIR)/sdcard/apps/$(TARGET)/audio/
-	@echo "  audio/ ($(words $(wildcard $(CURDIR)/audio/*.pcm)) PCM files)"
-endif
-	@echo "Copy sdcard/ contents to SD card root"
+	@rm -rf $(SDROOT)
+	@mkdir -p $(SDROOT)
+	@cp $(BUILD)/$(TARGET).dol $(SDROOT)/boot.dol
+	@cp meta.xml $(SDROOT)/meta.xml
+	@echo "Staged $(SDROOT)/ -- copy sdcard/ to the card root"
 
 # Push straight to the folder Dolphin reads as its SD card. On MC1 that path
 # comes from Dolphin's own config (WiiSDCardPath in Dolphin.ini); /mnt/c is the
@@ -199,13 +189,65 @@ dolphin: deploy
 	else \
 		rm -rf "$(DOLPHIN_SD)/apps/$(TARGET)"; \
 		mkdir -p "$(DOLPHIN_SD)/apps/$(TARGET)"; \
-		cp -r $(CURDIR)/sdcard/apps/$(TARGET)/. "$(DOLPHIN_SD)/apps/$(TARGET)/"; \
+		cp -r $(SDROOT)/. "$(DOLPHIN_SD)/apps/$(TARGET)/"; \
 		echo "Synced to $(DOLPHIN_SD)/apps/$(TARGET)/"; \
 		echo "  boot.dol   $$(stat -c%s "$(DOLPHIN_SD)/apps/$(TARGET)/boot.dol") bytes"; \
-		echo "  sprites    $$(ls "$(DOLPHIN_SD)/apps/$(TARGET)/sprites"/*.png 2>/dev/null | wc -l)"; \
-		echo "  audio      $$(ls "$(DOLPHIN_SD)/apps/$(TARGET)/audio"/*.pcm 2>/dev/null | wc -l)"; \
 		printf '\nIn Dolphin, open:\n  %s\n' 'C:\Dolphin\sdcard\apps\$(TARGET)\boot.dol'; \
 	fi
+	@echo ""
+	@echo "NOTE: this clears the app directory, which deletes saved scores and"
+	@echo "settings with it. Expected on a dev loop; do not mistake it for the"
+	@echo "game failing to save."
+
+# --- onto real hardware -------------------------------------------------------
+#
+#   make card SD=/mnt/e   install onto a mounted SD card (the permanent route)
+#   make wii              send this build to a waiting console over the network
+#
+# `card` takes a mount point because an SD card is removable and its drive
+# letter moves. In WSL, a card showing as E: is /mnt/e.
+#
+# Unlike `dolphin`, this MERGES rather than clearing. On the emulator a wiped
+# app directory is a clean slate; on a card it is somebody's high scores. Only
+# boot.dol and meta.xml are overwritten, so scores.json and settings.json
+# survive an update.
+card: deploy
+	@if [ -z "$(SD)" ]; then \
+	    echo "Set SD to the card's mount point:"; \
+	    echo "    make card SD=/mnt/e"; \
+	    echo ""; \
+	    echo "Or copy $(SDROOT)/ to <card>/apps/$(TARGET)/ yourself."; \
+	    exit 1; \
+	fi
+	@if [ ! -d "$(SD)" ]; then \
+	    echo "No such path: $(SD)"; \
+	    echo "Is the card mounted? In WSL a card at E: is /mnt/e."; \
+	    exit 1; \
+	fi
+	@mkdir -p "$(SD)/apps/$(TARGET)"
+	@cp $(SDROOT)/boot.dol "$(SD)/apps/$(TARGET)/boot.dol"
+	@cp $(SDROOT)/meta.xml "$(SD)/apps/$(TARGET)/meta.xml"
+	@echo "Installed to $(SD)/apps/$(TARGET)/"
+	@echo "Saves in that directory were left alone."
+	@echo "Eject the card; it appears in the Homebrew Channel as the meta.xml name."
+
+# Sends the .dol straight to a console and runs it, without installing anything.
+# The fast loop for real hardware: no card, no ejecting, a couple of seconds.
+#
+# The Wii has to be sitting on the Homebrew Channel's netloader screen -- open
+# the channel and press Home -- and it prints its own IP address there.
+wii: $(BUILD)
+	@if [ -z "$(WIILOAD)" ]; then \
+	    echo "wiiload needs the console's address:"; \
+	    echo "    make wii WIILOAD=tcp:192.168.1.50"; \
+	    echo ""; \
+	    echo "Open the Homebrew Channel, press Home for the netloader screen,"; \
+	    echo "and use the IP it shows. Export WIILOAD to avoid retyping it."; \
+	    exit 1; \
+	fi
+	@WIILOAD=$(WIILOAD) $(DEVKITPRO)/tools/bin/wiiload $(BUILD)/$(TARGET).dol
+	@echo "Sent $(BUILD)/$(TARGET).dol to $(WIILOAD) -- it runs immediately."
+	@echo "Nothing was installed; use 'make card' for that."
 
 #---------------------------------------------------------------------------------
 endif
