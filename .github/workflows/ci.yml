@@ -1,0 +1,42 @@
+# The host tests need nothing but a C compiler, so they run on a GitHub-hosted
+# runner rather than the dev box. These are the tests that must still run when
+# that machine is off — tying them to it would undo the point of having them.
+#
+# Two checkouts, because the obstacle field's Theme comes from the engine and
+# the test links magnolia's theme.c directly. The game's Makefile resolves the
+# engine at ../magnolia, so the paths below have to put them side by side.
+#
+# The devkitPPC build is not here, matching magnolia's workflow: it needs the
+# self-hosted runner, and that job stays commented out there until its label is
+# confirmed.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  host-tests:
+    name: host tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the game
+        uses: actions/checkout@v4
+        with:
+          path: moonlight-drift-wii
+
+      - name: Check out the engine beside it
+        uses: actions/checkout@v4
+        with:
+          repository: magmacrunchmedia/magnolia
+          path: magnolia
+
+      # obstacles, player, characters and stars: every module in source/ that
+      # is free of libogc. The rules are what a port gets wrong, and they are
+      # wrong in ways that look exactly like being right.
+      - name: make test
+        working-directory: moonlight-drift-wii
+        run: make test
