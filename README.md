@@ -5,6 +5,12 @@
 **Status:** Phases 1–8 complete — 24 characters, selector grid, audio, TV-safe UI,
 persistence, and a world-space playfield that matches the arcade version's geometry
 
+> **A note on `js/` references.** Comments and docs here cite files like
+> `js/obstacles.js` or `js/player.js`. Those are the browser version's sources,
+> which are not published — the game itself is playable at the link above. The
+> references record which function each port came from, so a behaviour can be
+> traced back to the original even though you cannot open the file.
+
 ---
 
 ## Tech Stack
@@ -227,8 +233,9 @@ TITLE → READY → PLAYING → GAME OVER → INITIALS → HIGH SCORES → TITLE
 ## Character System
 
 All 24 characters from the web game, selected from a 6×4 grid. Hitboxes, offsets
-and physics are generated from `js/characters/*.js` and `js/character-balance.js`
-in the source game — `source/characters.c` is generated output, not hand-written.
+and physics were generated from the browser version's per-character modules and
+its shared balance table — `source/characters.c` is generated output, not
+hand-written, and the table below is the authoritative copy of those numbers.
 
 | # | Character | Hitbox | Offset | Thrust | Gravity | MaxVel |
 |---|-----------|--------|--------|--------|---------|--------|
@@ -285,7 +292,7 @@ ffmpeg -i in.ogg -f s16le -acodec pcm_s16le -ar 48000 -ac 2 out.pcm
 Clips are held in main RAM (~2.4MB). Converting the music to 32kHz mono would
 cut it to ~710KB if that ever matters.
 
-The mix matches `loadAudio()` in `js/main.js` — music at 0.3, effects at
+The mix matches the browser version's `loadAudio()` — music at 0.3, effects at
 0.4–0.5 — set through the engine before anything plays. At the engine default
 every voice runs flat out and an eleven-second music loop simply buries the
 crash.
@@ -410,7 +417,7 @@ the world-to-screen projection and the host tests are all reusable, and worth
 reusing.
 
 The 24 characters and their sprites, the audio, the game's name and the visual
-design are © 2026 MagmaCrunch Media, all rights reserved, and are **not** covered
+design are © 2026 magmacrunch media, all rights reserved, and are **not** covered
 by that licence. The music, "Moonlight Drift" by C.P. Rutledge, is used with
 permission and is not licensed for reuse by anyone else. See [NOTICE](NOTICE) for
 the exact boundary, the third-party components, and the game's lineage.
