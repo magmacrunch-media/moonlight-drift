@@ -178,7 +178,7 @@ deploy: $(BUILD)
 	@cp meta.xml $(SDROOT)/meta.xml
 	@echo "Staged $(SDROOT)/ -- copy sdcard/ to the card root"
 
-# Push straight to the folder Dolphin reads as its SD card. On MC1 that path
+# Push straight to the folder Dolphin reads as its SD card. That path
 # comes from Dolphin's own config (WiiSDCardPath in Dolphin.ini); /mnt/c is the
 # Windows drive as seen from WSL. Override DOLPHIN_SD for a different setup.
 DOLPHIN_SD ?= /mnt/c/Dolphin/sdcard

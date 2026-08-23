@@ -72,13 +72,14 @@ the rule on what belongs where.
   There is no version pinning between the two repos yet, so if the engine has
   moved on and the game stops building, check out the matching engine tag:
   `git -C ../magnolia checkout v0.3.0`
-- SSH access to MC1 (Windows PC running WSL2 Ubuntu)
+- A machine with the toolchain on it. The build happens under WSL2 Ubuntu on a
+  Windows box here; anything with devkitPro and a POSIX shell will do.
 
 ### Build Commands
 
 ```bash
-# SSH into MC1
-ssh magma@100.75.220.87
+# If the toolchain lives on another machine, get a shell on it first
+# ssh <you>@<your-build-host>
 
 # Enter WSL2
 wsl -d Ubuntu
@@ -97,7 +98,7 @@ ls build/moonlight-drift.dol    # ~2MB Wii executable
 
 ### Running in Dolphin
 
-One command on MC1 builds, stages and pushes everything to the folder Dolphin
+One command builds, stages and pushes everything to the folder Dolphin
 reads as its SD card:
 
 ```bash
@@ -401,3 +402,15 @@ Three visual styles with matching tapered collision:
 | devkitPro | https://devkitpro.org |
 | GRRLIB | https://github.com/GRRLIB/GRRLIB |
 | WiiBrew | https://wiibrew.org |
+
+## License
+
+Code under the [Apache License 2.0](LICENSE) — the physics, the obstacle field,
+the world-to-screen projection and the host tests are all reusable, and worth
+reusing.
+
+The 24 characters and their sprites, the audio, the game's name and the visual
+design are © 2026 MagmaCrunch Media, all rights reserved, and are **not** covered
+by that licence. The music, "Moonlight Drift" by C.P. Rutledge, is used with
+permission and is not licensed for reuse by anyone else. See [NOTICE](NOTICE) for
+the exact boundary, the third-party components, and the game's lineage.
