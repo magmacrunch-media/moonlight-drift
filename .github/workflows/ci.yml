@@ -4,7 +4,8 @@
 #
 # Two checkouts, because the obstacle field's Theme comes from the engine and
 # the test links magnolia's theme.c directly. The game's Makefile resolves the
-# engine at ../magnolia, so the paths below have to put them side by side.
+# engine at ../../magnolia (beside the repo), so the paths below have to put
+# the engine checkout next to the game checkout.
 #
 # The devkitPPC build is not here, matching magnolia's workflow: it needs the
 # self-hosted runner, and that job stays commented out there until its label is
@@ -26,7 +27,7 @@ jobs:
       - name: Check out the game
         uses: actions/checkout@v4
         with:
-          path: moonlight-drift-wii
+          path: moonlight-drift
 
       - name: Check out the engine beside it
         uses: actions/checkout@v4
@@ -38,5 +39,5 @@ jobs:
       # is free of libogc. The rules are what a port gets wrong, and they are
       # wrong in ways that look exactly like being right.
       - name: make test
-        working-directory: moonlight-drift-wii
+        working-directory: moonlight-drift/wii
         run: make test

@@ -19,9 +19,9 @@ endif
 #---------------------------------------------------------------------------------
 TARGET      := moonlight-drift
 BUILD       := build
-SOURCES     := source ../magnolia/source ../magnolia/font
+SOURCES     := source ../../magnolia/source ../../magnolia/font
 DATA        :=
-INCLUDES    := ../magnolia ../magnolia/source ../magnolia/font source
+INCLUDES    := ../../magnolia ../../magnolia/source ../../magnolia/font source
 
 CFLAGS      = -g -O2 -Wall $(MACHDEP) $(INCLUDE)
 CXXFLAGS    = $(CFLAGS)
@@ -107,7 +107,7 @@ else
 # so depending on it would drag devkitPPC into the one target that exists for
 # not needing it.
 HOSTCC     ?= cc
-HOSTCFLAGS := -Wall -Wextra -O2 -I source -I tests -I ../magnolia/source
+HOSTCFLAGS := -Wall -Wextra -O2 -I source -I tests -I ../../magnolia/source
 
 test: $(HOST_TESTS)
 
@@ -116,7 +116,7 @@ test: $(HOST_TESTS)
 test-obstacles:
 	@mkdir -p $(BUILD)
 	@$(HOSTCC) $(HOSTCFLAGS) -o $(BUILD)/$@ \
-	    tests/test_obstacles.c source/obstacles.c ../magnolia/source/theme.c -lm
+	    tests/test_obstacles.c source/obstacles.c ../../magnolia/source/theme.c -lm
 	@$(BUILD)/$@
 
 test-player:
