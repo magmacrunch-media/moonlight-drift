@@ -419,6 +419,6 @@ purpose. Commercial use is reserved.
 
 The 24 characters and their sprites, the audio, the game's name and the visual
 design are © 2026 magmacrunch media, all rights reserved, and are **not** covered
-by that licence. The music, "Moonlight Drift" by C.P. Rutledge, is used with
-permission and is not licensed for reuse by anyone else. See [NOTICE](../NOTICE)
+by that licence. The music, "Moonlight Drift" by C.P. Rutledge, is a magmacrunch
+media record label release and is reserved the same way. See [NOTICE](../NOTICE)
 for the exact boundary, the third-party components, and the game's lineage.
