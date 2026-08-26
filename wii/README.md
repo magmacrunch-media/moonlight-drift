@@ -412,12 +412,13 @@ Three visual styles with matching tapered collision:
 
 ## License
 
-Code under the [Apache License 2.0](LICENSE) — the physics, the obstacle field,
-the world-to-screen projection and the host tests are all reusable, and worth
-reusing.
+Under the [PolyForm Noncommercial License 1.0.0](../LICENSE), like the rest of
+the repository — the physics, the obstacle field, the world-to-screen projection
+and the host tests are all there to read and build on for any noncommercial
+purpose. Commercial use is reserved.
 
 The 24 characters and their sprites, the audio, the game's name and the visual
 design are © 2026 magmacrunch media, all rights reserved, and are **not** covered
 by that licence. The music, "Moonlight Drift" by C.P. Rutledge, is used with
-permission and is not licensed for reuse by anyone else. See [NOTICE](NOTICE) for
-the exact boundary, the third-party components, and the game's lineage.
+permission and is not licensed for reuse by anyone else. See [NOTICE](../NOTICE)
+for the exact boundary, the third-party components, and the game's lineage.
