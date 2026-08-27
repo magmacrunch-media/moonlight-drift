@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+# Prefixed for the same reason as magmacrunch-george-boole and
+# magmacrunch-thld: PyPI has no scoping like the npm @magmacrunch/… packages.
+# See ../../george-boole/tui/PACKAGING.md for the plan this belongs to.
+#
+# The distribution is namespaced; the import package stays plain `drift`,
+# because that is what you type in code and it is not competing for anything.
+name = "magmacrunch-moonlight-drift"
+version = "0.1.0"
+description = "Moonlight Drift — terminal version"
+readme = "README.md"
+license = "PolyForm-Noncommercial-1.0.0"
+requires-python = ">=3.10"
+authors = [{ name = "magmacrunch media" }]
+
+# The engine, with its terminal backend. The simulation in drift/config.py,
+# projection.py, player.py, obstacles.py and characters.py depends on neither
+# and is importable on its own — tests/test_physics.py runs with nothing but
+# pytest on the machine, which is what proves it.
+dependencies = ["texastoast[tui]>=0.10.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.6"]
+
+# No [project.scripts] and no magmacrunch.games entry point yet. The simulation
+# is ported and tested; the screens that draw it are not written, so there is
+# nothing for a launcher to seat and nothing for a command to run. Both arrive
+# with drift/scenes.py.
+
+[tool.hatch.build.targets.wheel]
+packages = ["drift"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

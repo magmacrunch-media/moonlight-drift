@@ -8,6 +8,30 @@ One game, two versions, one repo:
   Never edit the website repo's copy directly — it gets overwritten.
 - `wii/` — Wii port (magnolia engine, C99). Has its own `AGENTS.md` with build
   and porting detail. Expects magnolia checked out beside this repo.
+- `tui/` — terminal version (texastoast engine, Python + its `[tui]` backend).
+  Has its own `README.md`. **In progress**: the simulation is ported, the
+  screens are not.
 
-A gameplay change is not done until both versions have it (or the commit says
-why one is skipped). `web/js/` is the reference the Wii port's comments cite.
+A gameplay change is not done until all three versions have it (or the commit
+says why one is skipped). `web/js/` is the reference the Wii port's comments
+cite, and the terminal port was taken from `wii/source/` for the same reason
+George Boole's was — it is the same rules already separated from a renderer.
+
+## Where the rules live in each version
+
+| | rules | rendering |
+|---|---|---|
+| `web/` | `js/player.js`, `js/obstacles.js` | same files, tangled with canvas |
+| `wii/` | `source/player.c`, `obstacles.c`, `projection.c` | `game_render.c`, `obstacle_renderer.c`, `ui.c` |
+| `tui/` | `drift/player.py`, `obstacles.py`, `projection.py` — no engine import | not written yet |
+
+**`wii/source/` is the reference to port from**, not `web/js/` — it is the same
+rules already separated from a renderer, and it was checked against the web
+build when it was written.
+
+## `tui/LICENSE` and `tui/NOTICE` are copies
+
+The originals are at the repo root, where they cover `web/` and `wii/` too. The
+copies exist because the wheel is built from `tui/` and PolyForm requires the
+notice to travel with the distribution — a wheel built from a subdirectory
+cannot reach a file above it. **Relicensing means changing both.**
