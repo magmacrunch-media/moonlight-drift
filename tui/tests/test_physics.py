@@ -154,7 +154,7 @@ def test_the_gap_stays_a_quarter_of_the_screen():
 
 
 def field(seed: int = 1) -> obstacles.ObstacleField:
-    f = obstacles.ObstacleField(rng=random.Random(seed), theme_count=4)
+    f = obstacles.ObstacleField(rng=random.Random(seed))
     f.reset()
     return f
 

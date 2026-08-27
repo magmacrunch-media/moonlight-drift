@@ -9,8 +9,7 @@ One game, two versions, one repo:
 - `wii/` — Wii port (magnolia engine, C99). Has its own `AGENTS.md` with build
   and porting detail. Expects magnolia checked out beside this repo.
 - `tui/` — terminal version (texastoast engine, Python + its `[tui]` backend).
-  Has its own `README.md`. **In progress**: the simulation is ported, the
-  screens are not.
+  Has its own `README.md`. `moonlight-drift`, or seated by the magmacrunch arcade.
 
 A gameplay change is not done until all three versions have it (or the commit
 says why one is skipped). `web/js/` is the reference the Wii port's comments
@@ -23,7 +22,7 @@ George Boole's was — it is the same rules already separated from a renderer.
 |---|---|---|
 | `web/` | `js/player.js`, `js/obstacles.js` | same files, tangled with canvas |
 | `wii/` | `source/player.c`, `obstacles.c`, `projection.c` | `game_render.c`, `obstacle_renderer.c`, `ui.c` |
-| `tui/` | `drift/player.py`, `obstacles.py`, `projection.py` — no engine import | not written yet |
+| `tui/` | `drift/player.py`, `obstacles.py`, `projection.py` — no engine import | `drift/scenes.py` |
 
 **`wii/source/` is the reference to port from**, not `web/js/` — it is the same
 rules already separated from a renderer, and it was checked against the web

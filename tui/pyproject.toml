@@ -26,10 +26,14 @@ dependencies = ["texastoast[tui]>=0.10.0"]
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.6"]
 
-# No [project.scripts] and no magmacrunch.games entry point yet. The simulation
-# is ported and tested; the screens that draw it are not written, so there is
-# nothing for a launcher to seat and nothing for a command to run. Both arrive
-# with drift/scenes.py.
+[project.scripts]
+moonlight-drift = "drift.__main__:main"
+
+# Found by a launcher enumerating installed games. Declaring it costs nothing
+# when the game is run on its own, and is the whole of what makes it appear in
+# an arcade menu - see texastoast.arcade.
+[project.entry-points."magmacrunch.games"]
+moonlight-drift = "drift.arcade:GAME"
 
 [tool.hatch.build.targets.wheel]
 packages = ["drift"]

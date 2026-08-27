@@ -4,8 +4,14 @@ The third version of the game, alongside `web/` (browser) and `wii/`. Runs on
 the [texastoast](https://pypi.org/project/texastoast/) engine's terminal
 backend.
 
-**In progress.** The simulation is ported and pinned by tests; the screens that
-draw it are not written yet, so there is nothing to run.
+```
+pip install magmacrunch-moonlight-drift
+moonlight-drift
+```
+
+Hold SPACE or ↑ to climb, release to fall, thread the columns. It is also a
+cabinet in the [magmacrunch](https://github.com/magmacrunchmedia/magmacrunch)
+arcade, and plays identically either way.
 
 ## What is here
 
@@ -16,6 +22,8 @@ draw it are not written yet, so there is nothing to run.
 | `drift/player.py` | gravity, thrust, and the two lethal edges |
 | `drift/obstacles.py` | the columns, their tapered silhouettes and collision |
 | `drift/characters.py` | 24 pilots — physics, hitboxes, a glyph and a colour |
+| `drift/stars.py` | the starfield, twinkling on a four-phase cycle |
+| `drift/scenes.py` | the title screen and the run |
 
 None of it imports the engine. `tests/test_physics.py` runs with nothing but
 pytest on the machine, which is what proves that claim.

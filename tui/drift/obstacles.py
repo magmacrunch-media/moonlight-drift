@@ -17,6 +17,7 @@ the shape you see is the shape you hit.
 
 from __future__ import annotations
 
+import colorsys
 import math
 import random
 from dataclasses import dataclass, field
@@ -24,6 +25,41 @@ from dataclasses import dataclass, field
 from drift import config
 
 MAX_OBSTACLES = 20
+
+
+@dataclass(frozen=True)
+class Theme:
+    """One column's palette: three harmonious shades of a single hue.
+
+    Ported from ``generateRandomTheme()`` in ``js/obstacles.js``. A hue rather
+    than a list of hand-picked colours, because the browser generates it and a
+    fixed list would drift from what people actually see. The Wii port gets the
+    same three shades from magnolia's ``theme_generate``.
+    """
+
+    primary: str
+    secondary: str
+    accent: str
+
+
+def _hsl_hex(h: float, s: float, lightness: float) -> str:
+    """HSL in the browser's units (degrees, percent) to ``#rrggbb``."""
+    r, g, b = colorsys.hls_to_rgb((h % 360) / 360.0,
+                                  min(max(lightness, 0.0), 100.0) / 100.0,
+                                  min(max(s, 0.0), 100.0) / 100.0)
+    return f"#{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}"
+
+
+def generate_theme(rng: random.Random) -> Theme:
+    """A palette, the way the browser makes one."""
+    hue = rng.randrange(360)
+    saturation = 40 + rng.randrange(40)   # 40-80%
+    lightness = 30 + rng.randrange(30)    # 30-60%
+    return Theme(
+        primary=_hsl_hex(hue, saturation, lightness),
+        secondary=_hsl_hex(hue, saturation + 10, lightness - 10),
+        accent=_hsl_hex(hue, saturation - 10, lightness + 20),
+    )
 
 #: The bottom column tapers over this many world units before it stops
 #: widening. A magic number in ``js/obstacles.js``; kept because the silhouette
@@ -47,8 +83,8 @@ class Obstacle:
     #: The obstacle's own number when it is a multiple of the theme interval,
     #: else 0. The browser uses the count itself as the label.
     milestone: int = 0
-    #: Index into the palette, rotated in runs rather than per obstacle.
-    theme: int = 0
+    #: The palette this column wears, rotated in runs rather than per obstacle.
+    theme: Theme | None = None
 
     def silhouette(self, world_y: int) -> tuple[float, float]:
         """``(left, right)`` of the solid part at ``world_y``.
@@ -103,19 +139,16 @@ class ObstacleField:
     rng: random.Random = field(default_factory=random.Random)
     obstacles: list[Obstacle] = field(default_factory=list)
     total_created: int = 0
-    theme: int = 0
+    theme: Theme | None = None
     _last_theme_change: int = 0
-
-    #: How many palettes the renderer offers. Set by whoever draws.
-    theme_count: int = 1
 
     def reset(self) -> None:
         self.obstacles.clear()
         self.total_created = 0
         self._last_theme_change = 0
-        self.theme = self.rng.randrange(self.theme_count)
+        self.theme = generate_theme(self.rng)
 
-    def _current_theme(self) -> int:
+    def _current_theme(self) -> Theme:
         """One palette shared by every column on screen, rotated in runs.
 
         A fresh theme per obstacle makes every column a different random
@@ -124,8 +157,10 @@ class ObstacleField:
         ``getCurrentTheme()`` in ``js/obstacles.js``.
         """
         if self.total_created - self._last_theme_change >= config.THEME_CHANGE_INTERVAL:
-            self.theme = self.rng.randrange(self.theme_count)
+            self.theme = generate_theme(self.rng)
             self._last_theme_change = self.total_created
+        if self.theme is None:
+            self.theme = generate_theme(self.rng)
         return self.theme
 
     def create(self, world_width: int) -> None:
@@ -200,4 +235,5 @@ class ObstacleField:
         return gained
 
 
-__all__ = ["BOTTOM_TAPER_LENGTH", "MAX_OBSTACLES", "Obstacle", "ObstacleField"]
+__all__ = ["BOTTOM_TAPER_LENGTH", "MAX_OBSTACLES", "Obstacle", "ObstacleField",
+           "Theme", "generate_theme"]
