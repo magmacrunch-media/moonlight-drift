@@ -19,7 +19,7 @@ pytest.importorskip("textual", reason='needs: pip install -e ".[dev]" with texas
 from texastoast.arcade import ArcadeGame  # noqa: E402
 from texastoast.core.tui_host import TuiHost  # noqa: E402
 
-from drift import config, theme  # noqa: E402
+from drift import characters, config, scenes, theme  # noqa: E402  # noqa: E402
 from drift.app import DriftApp  # noqa: E402
 from drift.arcade import GAME  # noqa: E402
 from drift.scenes import GameScene, TitleScene  # noqa: E402
@@ -429,3 +429,186 @@ def test_the_theme_moves_in_runs_on_screen_too():
         scene.field.create(config.WORLD_WIDTH)
     themes = {o.theme for o in scene.field.obstacles}
     assert len(themes) == 1, "palette changed mid-run"
+
+# ── Choosing a pilot ────────────────────────────────────────────────
+
+
+def test_the_title_offers_a_roster_and_the_rules():
+    app = hosted()
+    assert app.host.scene.ITEMS == ("START DRIFTING", "CHOOSE A PILOT",
+                                    "HOW TO PLAY", "QUIT")
+
+
+def test_the_roster_opens_on_whoever_you_are_flying():
+    """Reopening it should put the cursor where you left it, not make you
+    scroll back to yourself every time."""
+    app = hosted()
+    app.set_character(characters.ROSTER[9])
+    app.choose_pilot()
+    settle(app)
+    assert app.host.scene.selected == 9
+
+
+def test_choosing_a_pilot_changes_who_flies():
+    app = hosted()
+    app.choose_pilot()
+    settle(app)
+    roster = app.host.scene
+    roster.handle_key("down")
+    roster.handle_key("enter")
+    settle(app)
+    assert app.character is characters.ROSTER[1]
+    assert isinstance(app.host.scene, TitleScene)
+
+
+def test_escape_leaves_the_roster_without_choosing():
+    """A menu with no way out is a trap."""
+    app = hosted()
+    before = app.character
+    app.choose_pilot()
+    settle(app)
+    app.host.scene.handle_key("down")
+    app.host.scene.handle_key("escape")
+    settle(app)
+    assert app.character is before
+    assert isinstance(app.host.scene, TitleScene)
+
+
+def test_the_roster_wraps_at_both_ends():
+    app = hosted()
+    app.choose_pilot()
+    settle(app)
+    roster = app.host.scene
+    roster.selected = 0
+    roster.handle_key("up")
+    assert roster.selected == len(characters.ROSTER) - 1
+    roster.handle_key("down")
+    assert roster.selected == 0
+
+
+def test_a_new_pilot_is_flown_on_the_next_run():
+    app = hosted()
+    app.set_character(characters.get("fire-toad"))
+    app.start_run()
+    settle(app)
+    scene = app.host.scene
+    assert scene.player.thrust == characters.get("fire-toad").thrust
+
+
+def test_a_run_in_progress_keeps_the_pilot_it_started_with():
+    """Swapping physics underneath a player mid-flight would be a different
+    game, not a setting."""
+    app = hosted()
+    app.start_run()
+    settle(app)
+    scene = app.host.scene
+    before = scene.player.gravity
+    app.set_character(characters.get("fire-toad"))
+    app.host.stack.update(1 / 30)
+    assert scene.player.gravity == before
+
+
+def test_the_roster_scrolls_so_every_pilot_is_reachable():
+    """Twenty-four pilots do not fit a standard terminal, which is why this is
+    drawn by hand rather than with the engine's Menu widget."""
+    async def go():
+        app = hosted()
+        async with await _piloted(app, size=(80, 24)) as pilot:
+            await pilot.pause()
+            await asyncio.sleep(0.25)
+            app.choose_pilot()
+            settle(app)
+            await asyncio.sleep(0.25)
+            roster = app.host.scene
+            assert len(characters.ROSTER) > roster._viewport(), "no scroll needed?"
+
+            for _ in range(len(characters.ROSTER) - 1):
+                await pilot.press("down")
+            await asyncio.sleep(0.25)
+            text = buffer_text(app)
+            last = characters.ROSTER[-1]
+            assert last.name in text, "the last pilot is unreachable"
+            assert roster.selected == len(characters.ROSTER) - 1
+            app.host.quit()
+
+    run(go())
+
+
+def test_the_highlighted_pilots_physics_are_shown():
+    """The art cannot come across at two cells wide, so the numbers are what
+    distinguishes one pilot from another."""
+    async def go():
+        app = hosted()
+        async with await _piloted(app) as pilot:
+            await pilot.pause()
+            app.choose_pilot()
+            settle(app)
+            await asyncio.sleep(0.3)
+            text = buffer_text(app)
+            first = characters.ROSTER[0]
+            assert f"{first.gravity:.2f}" in text
+            assert "thrust" in text and "top speed" in text
+            app.host.quit()
+
+    run(go())
+
+
+# ── How to play ─────────────────────────────────────────────────────
+
+
+def test_the_rules_open_and_any_other_key_closes_them():
+    app = hosted()
+    app.show_rules()
+    settle(app)
+    assert isinstance(app.host.scene, scenes.RulesScene)
+    app.host.scene.handle_key("x")
+    settle(app)
+    assert isinstance(app.host.scene, TitleScene)
+
+
+def test_the_rules_scroll_rather_than_truncating():
+    async def go():
+        app = hosted()
+        async with await _piloted(app, size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.show_rules()
+            settle(app)
+            await asyncio.sleep(0.3)
+            assert "FLYING" in buffer_text(app)
+
+            for _ in range(40):
+                await pilot.press("down")
+            await asyncio.sleep(0.3)
+            assert "PILOTS" in buffer_text(app), "the last heading is unreachable"
+            app.host.quit()
+
+    run(go())
+
+
+def test_the_rules_never_write_over_their_own_hint():
+    async def go():
+        app = hosted()
+        async with await _piloted(app, size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.show_rules()
+            settle(app)
+            await asyncio.sleep(0.3)
+            rows = buffer_text(app).splitlines()
+            hint = rows[app.renderer.height - 2]
+            assert hint.strip().startswith("↑↓ scroll"), hint
+            app.host.quit()
+
+    run(go())
+
+
+def test_scrolling_the_rules_stops_at_both_ends():
+    app = hosted()
+    app.show_rules()
+    settle(app)
+    rules = app.host.scene
+    rules.handle_key("up")
+    assert rules.offset == 0
+    for _ in range(200):
+        rules.handle_key("down")
+    assert rules.offset == rules._max_offset()
+    assert isinstance(app.host.scene, scenes.RulesScene)

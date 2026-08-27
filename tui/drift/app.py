@@ -51,6 +51,27 @@ class DriftApp:
         """Begin a run, over the title screen, which waits underneath."""
         self.host.push_scene(GameScene(self))
 
+    def choose_pilot(self) -> None:
+        """The roster, over the title screen."""
+        from drift.scenes import PilotScene
+
+        self.host.push_scene(PilotScene(self))
+
+    def show_rules(self) -> None:
+        """How to play, over the title screen."""
+        from drift.scenes import RulesScene
+
+        self.host.push_scene(RulesScene(self))
+
+    def set_character(self, character) -> None:
+        """Fly as somebody else from the next run on.
+
+        A run in progress keeps whoever it started with — swapping physics
+        underneath a player mid-flight would be a different game, not a
+        setting.
+        """
+        self.character = character
+
     def to_title(self) -> None:
         """Leave the current run for the title screen underneath it."""
         self.host.pop_scene()

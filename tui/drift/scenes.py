@@ -34,15 +34,48 @@ first honest measurement of what the backend costs.
 
 from __future__ import annotations
 
+import textwrap
 from dataclasses import replace
 
 from texastoast.ui import DEFAULT_THEME, Menu, bigtext
 
-from drift import config, obstacles, projection, stars, theme
+from drift import characters, config, obstacles, projection, stars, theme
 from drift.player import new_player
 
 MENU_HELP = "↑↓ choose    Enter select    Q quit"
 GAME_HELP = "SPACE/↑ thrust    R restart    Esc title    Q quit"
+PILOT_HELP = "↑↓ choose    Enter fly    Esc back"
+RULES_HELP = "↑↓ scroll    any other key goes back"
+
+#: Ported from the browser build's "how to play", which is three lines, plus
+#: the one thing a terminal has to explain that a browser does not: a keyboard
+#: reports presses and never releases, so a held thrust is inferred from
+#: auto-repeat and behaves a little differently from holding a mouse button.
+RULES = (
+    ("FLYING", (
+        "Hold SPACE or the up arrow to climb. Release to fall. That is the "
+        "whole control scheme.",
+        "In a terminal a held key is not something a program can observe - "
+        "keyboards report presses and never releases. Thrust is inferred from "
+        "the key repeating, so it lets go about a tenth of a second after you "
+        "do.",
+    )),
+    ("DYING", (
+        "The columns are lethal, and so are the top and bottom of the world. "
+        "Drifting off the screen ends the run exactly like hitting something.",
+        "The exhaust plume below you is not solid, so it can overlap a column "
+        "without killing you.",
+    )),
+    ("SCORING", (
+        "One point per column cleared. Every tenth column is marked and "
+        "brings a new palette with it.",
+    )),
+    ("PILOTS", (
+        "Each of the 24 pilots has its own thrust, gravity and top speed, and "
+        "they fly differently enough to notice in the first few seconds. "
+        "Choose one from the title screen.",
+    )),
+)
 
 #: Keys that count as thrust. Space is the browser's; the arrow is what a
 #: player reaches for without being told.
@@ -81,7 +114,7 @@ class TitleScene:
     completely, so drawing underneath it would be wasted work.
     """
 
-    ITEMS = ("START DRIFTING", "QUIT")
+    ITEMS = ("START DRIFTING", "CHOOSE A PILOT", "HOW TO PLAY", "QUIT")
 
     def __init__(self, app):
         self.app = app
@@ -106,6 +139,10 @@ class TitleScene:
     def _chose(self, index: int, label: str) -> None:  # noqa: ARG002
         if index == 0:
             self.app.start_run()
+        elif index == 1:
+            self.app.choose_pilot()
+        elif index == 2:
+            self.app.show_rules()
         else:
             self.app.host.quit()
 
@@ -149,6 +186,9 @@ class TitleScene:
 
         self.menu.render()
 
+        pilot = f"{self.app.character.glyph}  {self.app.character.name}"
+        r.ui_text(cx, r.height - 4, pilot, fill=self.app.character.accent,
+                  anchor="n")
         if self.app.best:
             r.ui_text(cx, r.height - 3, f"best: {self.app.best}",
                       fill=theme.LABEL, anchor="n")
@@ -166,6 +206,170 @@ class TitleScene:
         """
         rows = len(self.ITEMS) * theme.MENU_ITEM_H + 2 * theme.MENU_PAD
         return (renderer.height - rows) // 2 - theme.MENU_BORDER
+
+
+class PilotScene:
+    """The roster.
+
+    Twenty-four pilots will not fit a standard terminal, and the engine's Menu
+    widget lays a box around its whole list, so this is drawn by hand: a
+    scrolling window with the selection kept inside it.
+
+    What separates one pilot from another here is thrust, gravity and top
+    speed. The art cannot come across at two cells wide — see
+    :mod:`drift.characters` — so the numbers are shown instead, for the
+    highlighted pilot, because they are the part you actually feel.
+    """
+
+    def __init__(self, app):
+        self.app = app
+        self.selected = characters.ROSTER.index(app.character)
+        self.offset = 0
+
+    # -- Flow --------------------------------------------------------
+
+    def _move(self, delta: int) -> None:
+        self.selected = (self.selected + delta) % len(characters.ROSTER)
+        self._scroll_into_view()
+
+    def _viewport(self) -> int:
+        """Rows of roster on screen, between the heading and the footer."""
+        return max(1, self.app.renderer.height - 6)
+
+    def _scroll_into_view(self) -> None:
+        """Keep the selection on screen without moving the list more than it
+        has to — a list that recentres on every keypress is unreadable."""
+        viewport = self._viewport()
+        if self.selected < self.offset:
+            self.offset = self.selected
+        elif self.selected >= self.offset + viewport:
+            self.offset = self.selected - viewport + 1
+
+    def handle_key(self, key: str) -> bool:
+        if key in ("up", "w", "k"):
+            self._move(-1)
+        elif key in ("down", "s", "j"):
+            self._move(1)
+        elif key in ("enter", "space"):
+            self.app.set_character(characters.ROSTER[self.selected])
+            self.app.to_title()
+        elif key in ("escape", "q"):
+            # Back without choosing. Leaving without a way to cancel is how a
+            # menu becomes a trap.
+            self.app.to_title()
+        else:
+            return False
+        return True
+
+    def update(self, dt: float) -> None:
+        pass
+
+    def render(self) -> None:
+        r = self.app.renderer
+        r.clear()
+        r.draw_rect(0, 0, r.width, r.height, theme.BG)
+        if _too_small(r, theme.MENU_MIN_COLS, theme.MENU_MIN_ROWS):
+            r.present()
+            return
+
+        viewport = self._viewport()
+        self.offset = min(self.offset,
+                          max(0, len(characters.ROSTER) - viewport))
+        self._scroll_into_view()
+
+        r.ui_text(r.width // 2, 1, "CHOOSE A PILOT", fill=theme.TITLE,
+                  anchor="n")
+
+        left = max(2, r.width // 2 - 16)
+        y = 3
+        window = characters.ROSTER[self.offset:self.offset + viewport]
+        for i, pilot in enumerate(window, start=self.offset):
+            if y >= r.height - 3:
+                break
+            chosen = i == self.selected
+            marker = ">" if chosen else " "
+            colour = pilot.accent if chosen else theme.LABEL
+            r.ui_text(left, y, f"{marker} {pilot.glyph}  {pilot.name}",
+                      fill=colour)
+            y += 1
+
+        pilot = characters.ROSTER[self.selected]
+        stats = (f"thrust {pilot.thrust:+.2f}   gravity {pilot.gravity:.2f}   "
+                 f"top speed {pilot.max_velocity:.1f}")
+        r.ui_text(r.width // 2, r.height - 3, _fit(stats, r.width - 2),
+                  fill=theme.VALUE, anchor="n")
+        r.ui_text(r.width // 2, r.height - 2, _fit(PILOT_HELP, r.width - 2),
+                  fill=theme.DIM, anchor="n")
+        r.present()
+
+
+class RulesScene:
+    """How to play. Scrolls, for the reason George Boole's does: the text is
+    longer than a standard terminal is tall, and a screen that stopped would
+    cut off mid-sentence."""
+
+    def __init__(self, app):
+        self.app = app
+        self.offset = 0
+
+    def handle_key(self, key: str) -> bool:
+        if key in ("up", "w", "k"):
+            self.offset = max(0, self.offset - 1)
+        elif key in ("down", "s", "j"):
+            self.offset = min(self._max_offset(), self.offset + 1)
+        else:
+            self.app.to_title()
+        return True
+
+    def update(self, dt: float) -> None:
+        pass
+
+    def _lines(self, width: int) -> list[tuple[int, str, str]]:
+        out: list[tuple[int, str, str]] = []
+        for heading, paragraphs in RULES:
+            out.append((0, heading, theme.MENU_SELECTED))
+            for paragraph in paragraphs:
+                for line in textwrap.wrap(paragraph, max(10, width - 2)):
+                    out.append((2, line, theme.VALUE))
+            out.append((0, "", theme.DIM))
+        return out
+
+    def _viewport(self) -> int:
+        """Rows of text: the height less the heading block and the hint."""
+        return max(1, self.app.renderer.height - 5)
+
+    def _max_offset(self) -> int:
+        r = self.app.renderer
+        return max(0, len(self._lines(r.width - 4)) - self._viewport())
+
+    def render(self) -> None:
+        r = self.app.renderer
+        r.clear()
+        r.draw_rect(0, 0, r.width, r.height, theme.BG)
+        if _too_small(r, theme.MENU_MIN_COLS, theme.MENU_MIN_ROWS):
+            r.present()
+            return
+
+        lines = self._lines(r.width - 4)
+        viewport = self._viewport()
+        self.offset = min(self.offset, max(0, len(lines) - viewport))
+
+        r.ui_text(2, 1, "HOW TO PLAY", fill=theme.TITLE)
+        y = 3
+        for indent, text, colour in lines[self.offset:self.offset + viewport]:
+            if y >= r.height - 2:
+                break
+            if text:
+                r.ui_text(2 + indent, y, text, fill=colour)
+            y += 1
+
+        more = len(lines) - (self.offset + viewport)
+        r.ui_text(2, r.height - 2, _fit(RULES_HELP, r.width - 2), fill=theme.DIM)
+        if more > 0:
+            tail = f"{more} more ↓"
+            r.ui_text(r.width - len(tail) - 2, r.height - 2, tail,
+                      fill=theme.MENU_SELECTED)
+        r.present()
 
 
 class GameScene:

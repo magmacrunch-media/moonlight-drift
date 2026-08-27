@@ -26,6 +26,26 @@ Hold SPACE or ↑ to climb, release to fall, thread the columns. It is also a
 cabinet in the [magmacrunch](https://github.com/magmacrunchmedia/magmacrunch)
 arcade, and plays identically either way.
 
+## On the title screen
+
+**Choose a pilot** opens the roster: all 24, with the highlighted one's thrust,
+gravity and top speed underneath. They fly differently enough to notice in the
+first few seconds, and who you are flying is shown on the title screen so a
+choice that went nowhere is obvious.
+
+**How to play** is the browser build's instructions plus the one thing a
+terminal has to explain that a browser does not — a keyboard reports presses
+and never releases, so thrust is inferred from auto-repeat and lets go about a
+tenth of a second after you do.
+
+Both scroll: 24 pilots and the rules are each longer than a standard terminal
+is tall.
+
+```
+moonlight-drift --list-characters       the roster, without opening the game
+moonlight-drift --character fire-toad   fly as someone in particular
+```
+
 ## What is here
 
 | | |
