@@ -21,7 +21,7 @@ authors = [{ name = "magmacrunch media" }]
 # projection.py, player.py, obstacles.py and characters.py depends on neither
 # and is importable on its own — tests/test_physics.py runs with nothing but
 # pytest on the machine, which is what proves it.
-dependencies = ["texastoast[tui]>=0.10.0"]
+dependencies = ["texastoast[tui]>=0.11.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.6"]

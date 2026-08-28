@@ -18,6 +18,8 @@ from __future__ import annotations
 import random
 from typing import Any
 
+from texastoast.scores import ScoreBook
+
 from drift import characters
 from drift.scenes import GameScene, TitleScene
 
@@ -25,15 +27,27 @@ from drift.scenes import GameScene, TitleScene
 class DriftApp:
     """A session of Moonlight Drift, drawing on somebody else's terminal."""
 
+    #: The key the browser build posts under, and therefore the key this files
+    #: its local board under too.
+    SCORE_KEY = "moonlight-drift"
+
     def __init__(self, host: Any, character: str | None = None,
-                 seed: int | None = None):
+                 seed: int | None = None, scores: ScoreBook | None = None):
         self.host = host
         #: Seeded so a run can be replayed, which is what makes a collision
         #: report reproducible rather than a story about one time it happened.
         self.rng = random.Random(seed)
         self.character = characters.get(character or characters.DEFAULT.key)
-        #: Best score for as long as this session lasts.
-        self.best = 0
+
+        #: The high score table, on disk. Filed under the same key the browser
+        #: build posts to — see js/index.html — so that a shared board later
+        #: means a shared board and not two boards with the same name.
+        self.scores = scores or ScoreBook(self.SCORE_KEY)
+        #: What the player last typed, so a second run does not ask again.
+        self.initials = "AAA"
+        #: Where the last recorded run landed, for the death banner. None
+        #: until something has been recorded this session.
+        self.last_rank: int | None = None
 
         #: The title screen. The caller pushes it — a game that pushed its own
         #: scene would take that decision away from whatever is seating it.
@@ -56,6 +70,18 @@ class DriftApp:
         from drift.scenes import PilotScene
 
         self.host.push_scene(PilotScene(self))
+
+    def show_scores(self) -> None:
+        """The high score table, over the title screen."""
+        from drift.scenes import ScoresScene
+
+        self.host.push_scene(ScoresScene(self))
+
+    def enter_initials(self, score: int) -> None:
+        """Ask who just did that, over the finished run."""
+        from drift.scenes import InitialsScene
+
+        self.host.push_scene(InitialsScene(self, score))
 
     def show_rules(self) -> None:
         """How to play, over the title screen."""
@@ -86,9 +112,29 @@ class DriftApp:
         """
         self.host.pop_scene()
 
-    def record(self, score: int) -> None:
-        if score > self.best:
-            self.best = score
+    @property
+    def best(self) -> int:
+        """The best score on record, not just this session's.
+
+        Read from the book rather than cached: the file is the truth, and a
+        cached copy would go stale the moment anything else wrote to it.
+        """
+        return self.scores.best()
+
+    def qualifies(self, score: int) -> bool:
+        """Whether a score is worth asking for initials over.
+
+        Nobody wants to be asked for their name to be told they came 213th.
+        """
+        return score > 0 and self.scores.qualifies(score)
+
+    def record(self, score: int, initials: str | None = None):
+        """Put a score on the board, under the pilot who set it."""
+        self.initials = initials or self.initials
+        result = self.scores.save(self.initials, score,
+                                  pilot=self.character.key)
+        self.last_rank = result.rank
+        return result
 
     # -- Introspection, for tests ------------------------------------
 

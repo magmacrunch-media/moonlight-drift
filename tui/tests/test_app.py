@@ -16,13 +16,26 @@ import pytest
 
 pytest.importorskip("textual", reason='needs: pip install -e ".[dev]" with texastoast[tui]')
 
+from texastoast import scores as score_mod  # noqa: E402
 from texastoast.arcade import ArcadeGame  # noqa: E402
 from texastoast.core.tui_host import TuiHost  # noqa: E402
 
-from drift import characters, config, scenes, theme  # noqa: E402  # noqa: E402
+from drift import characters, config, scenes, theme  # noqa: E402
 from drift.app import DriftApp  # noqa: E402
 from drift.arcade import GAME  # noqa: E402
 from drift.scenes import GameScene, TitleScene  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def isolated_scores(tmp_path, monkeypatch):
+    """No test may touch a real player's score file.
+
+    Autouse rather than opt-in: a suite that can quietly delete somebody's
+    high scores is not one you want to run twice, and remembering to ask for
+    a fixture is exactly the kind of thing that gets forgotten in the test
+    added six months from now.
+    """
+    monkeypatch.setenv(score_mod.DATA_DIR_ENV, str(tmp_path))
 
 
 def buffer_text(app: DriftApp) -> str:
@@ -248,6 +261,11 @@ def test_dying_records_the_best_score():
     app, scene = flying()
     scene.score = 7
     scene._die()
+    settle(app)
+    # A qualifying score asks for initials first; confirming is what records it.
+    if not app.in_game:
+        app.host.scene.handle_key("enter")
+        settle(app)
     assert app.best == 7
     assert scene.dead
 
@@ -256,6 +274,10 @@ def test_restarting_clears_the_run_but_keeps_the_best():
     app, scene = flying()
     scene.score = 5
     scene._die()
+    settle(app)
+    if not app.in_game:
+        app.host.scene.handle_key("enter")
+        settle(app)
     scene.restart()
     assert scene.score == 0
     assert not scene.dead
@@ -296,11 +318,30 @@ def test_the_title_screen_says_the_whole_name():
             await pilot.pause()
             await asyncio.sleep(0.25)
             text = buffer_text(app)
-            assert theme.TAGLINE in text
             assert "START DRIFTING" in text
+            assert "HIGH SCORES" in text
             app.host.quit()
 
     run(go())
+
+
+def test_the_title_takes_the_room_and_the_tagline_yields():
+    """Nothing is ever drawn where the menu box will land. At 80x24 the block
+    title fills the gap and the tagline is dropped; give it more rows and the
+    tagline comes back. The alternative was drawing it anyway and having the
+    box paint over it, which reads as a design choice rather than a bug."""
+    async def go(size, tagline_expected):
+        app = hosted()
+        async with await _piloted(app, size=size) as pilot:
+            await pilot.pause()
+            await asyncio.sleep(0.25)
+            text = buffer_text(app)
+            assert (theme.TAGLINE in text) is tagline_expected, size
+            assert "START DRIFTING" in text, "the menu is always reachable"
+            app.host.quit()
+
+    run(go((80, 24), False))
+    run(go((80, 30), True))
 
 
 def test_the_run_draws_the_pilot_the_score_and_the_sky():
@@ -346,7 +387,9 @@ def test_the_death_banner_appears_and_says_the_score():
         async with await _piloted(app) as pilot:
             await pilot.pause()
             scene.score = 4
-            scene._die()
+            # Recorded without the prompt, so the banner is what is on top.
+            app.record(4)
+            scene.dead = True
             await asyncio.sleep(0.25)
             text = buffer_text(app)
             assert "DRIFTED OFF" in text
@@ -436,7 +479,7 @@ def test_the_theme_moves_in_runs_on_screen_too():
 def test_the_title_offers_a_roster_and_the_rules():
     app = hosted()
     assert app.host.scene.ITEMS == ("START DRIFTING", "CHOOSE A PILOT",
-                                    "HOW TO PLAY", "QUIT")
+                                    "HIGH SCORES", "HOW TO PLAY", "QUIT")
 
 
 def test_the_roster_opens_on_whoever_you_are_flying():
@@ -612,3 +655,176 @@ def test_scrolling_the_rules_stops_at_both_ends():
         rules.handle_key("down")
     assert rules.offset == rules._max_offset()
     assert isinstance(app.host.scene, scenes.RulesScene)
+
+# ── High scores ─────────────────────────────────────────────────────
+
+
+def test_the_board_is_filed_under_the_key_the_browser_uses():
+    """A shared board later has to mean a shared board, not two boards with
+    the same name."""
+    assert DriftApp.SCORE_KEY == "moonlight-drift"
+
+
+def test_a_score_survives_the_session(tmp_path):
+    """The whole point of the file. A fresh app on the same directory sees
+    what the last one recorded."""
+    from texastoast.scores import ScoreBook
+
+    book = ScoreBook("moonlight-drift", directory=tmp_path)
+    first = DriftApp(TuiHost(title="t"), scores=book)
+    first.record(300, "jam")
+
+    second = DriftApp(TuiHost(title="t"),
+                      scores=ScoreBook("moonlight-drift", directory=tmp_path))
+    assert second.best == 300
+
+
+def test_a_score_records_who_flew_it():
+    app = hosted()
+    app.set_character(characters.get("fire-toad"))
+    app.record(120, "jam")
+    assert app.scores.load()[0].extra == {"pilot": "fire-toad"}
+
+
+def test_dying_with_a_qualifying_score_asks_for_initials():
+    app, scene = flying()
+    scene.score = 50
+    scene._die()
+    settle(app)
+    assert isinstance(app.host.scene, scenes.InitialsScene)
+    assert scene.dead
+
+
+def test_a_score_of_nothing_is_not_worth_asking_about():
+    """Being asked for your name to record a zero is worse than not being
+    asked."""
+    app, scene = flying()
+    scene.score = 0
+    scene._die()
+    settle(app)
+    assert not isinstance(app.host.scene, scenes.InitialsScene)
+    assert app.scores.load() == []
+
+
+def test_a_score_that_misses_the_table_is_still_recorded():
+    """It just does not earn being asked about."""
+    app = hosted()
+    for i in range(scores_limit := app.scores.limit):
+        app.scores.save("aaa", 1000 + i)
+    app.start_run()
+    settle(app)
+    scene = app.host.scene
+    scene.score = 5
+    scene._die()
+    settle(app)
+    assert not isinstance(app.host.scene, scenes.InitialsScene)
+    assert scores_limit == app.scores.limit
+
+
+def test_typing_initials_puts_them_on_the_board():
+    app, scene = flying()
+    scene.score = 77
+    scene._die()
+    settle(app)
+    entry = app.host.scene
+    for key in ("j", "a", "m"):
+        entry.handle_key(key)
+    entry.handle_key("enter")
+    settle(app)
+    assert [(e.initials, e.score) for e in app.scores.load()] == [("JAM", 77)]
+
+
+def test_backspace_fixes_a_typo():
+    app, scene = flying()
+    scene.score = 10
+    scene._die()
+    settle(app)
+    entry = app.host.scene
+    for key in ("j", "x"):
+        entry.handle_key(key)
+    entry.handle_key("backspace")
+    entry.handle_key("m")
+    entry.handle_key("enter")
+    settle(app)
+    assert app.scores.load()[0].initials == "JMA"
+
+
+def test_only_three_characters_are_taken():
+    app, scene = flying()
+    scene.score = 10
+    scene._die()
+    settle(app)
+    entry = app.host.scene
+    for key in "jamie":
+        entry.handle_key(key)
+    assert entry.typed == "JAM"
+
+
+def test_escaping_the_prompt_still_records_the_score():
+    """A score is a fact; the initials are a label on it. Throwing the run
+    away because somebody did not want to type would be the wrong trade."""
+    app, scene = flying()
+    scene.score = 33
+    scene._die()
+    settle(app)
+    app.host.scene.handle_key("escape")
+    settle(app)
+    assert app.scores.best() == 33
+
+
+def test_the_prompt_draws_over_the_wreck_rather_than_replacing_it():
+    app, scene = flying()
+    assert scenes.InitialsScene.render_below is True
+
+
+def test_the_death_banner_says_where_the_run_landed():
+    app, scene = flying()
+    app.record(90, "jam")
+    assert app.last_rank == 1
+
+
+def test_a_new_run_forgets_the_last_runs_rank():
+    app, scene = flying()
+    app.record(90, "jam")
+    scene.restart()
+    assert app.last_rank is None
+
+
+def test_the_table_shows_what_was_recorded():
+    app = hosted()
+    app.scores.save("jam", 128, pilot="fire-toad")
+
+    async def go():
+        async with await _piloted(app) as pilot:
+            await pilot.pause()
+            app.show_scores()
+            settle(app)
+            await asyncio.sleep(0.3)
+            text = buffer_text(app)
+            assert "JAM" in text
+            assert "128" in text
+            assert characters.get("fire-toad").glyph in text
+            app.host.quit()
+
+    run(go())
+
+
+def test_an_empty_table_says_so():
+    app = hosted()
+
+    async def go():
+        async with await _piloted(app) as pilot:
+            await pilot.pause()
+            app.show_scores()
+            settle(app)
+            await asyncio.sleep(0.3)
+            assert "no scores yet" in buffer_text(app)
+            app.host.quit()
+
+    run(go())
+
+
+def test_the_title_shows_the_best_on_record_not_just_this_session():
+    app = hosted()
+    app.scores.save("jam", 512)
+    assert app.best == 512

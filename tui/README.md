@@ -46,6 +46,23 @@ moonlight-drift --list-characters       the roster, without opening the game
 moonlight-drift --character fire-toad   fly as someone in particular
 ```
 
+## High scores
+
+Kept on disk, so a record outlives the session. **Filed under the same key the
+browser build posts to** (`moonlight-drift`), which is what would make a shared
+board later a shared board rather than two boards with the same name.
+
+A run that makes the table is asked for three initials, over the wreck rather
+than instead of it. One that does not is recorded anyway — it just has not
+earned being asked about. Each entry remembers the pilot who flew it.
+
+```
+MAGMACRUNCH_DATA_DIR=/somewhere/else moonlight-drift
+```
+
+The board lives under your platform's user data directory unless that says
+otherwise. Nothing is sent anywhere: see `texastoast.scores`.
+
 ## What is here
 
 | | |

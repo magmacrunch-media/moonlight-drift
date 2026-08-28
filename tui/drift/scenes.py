@@ -37,6 +37,7 @@ from __future__ import annotations
 import textwrap
 from dataclasses import replace
 
+from texastoast import scores
 from texastoast.ui import DEFAULT_THEME, Menu, bigtext
 
 from drift import characters, config, obstacles, projection, stars, theme
@@ -46,6 +47,8 @@ MENU_HELP = "↑↓ choose    Enter select    Q quit"
 GAME_HELP = "SPACE/↑ thrust    R restart    Esc title    Q quit"
 PILOT_HELP = "↑↓ choose    Enter fly    Esc back"
 RULES_HELP = "↑↓ scroll    any other key goes back"
+INITIALS_HELP = "Enter confirms    Backspace fixes"
+SCORES_HELP = "any key goes back"
 
 #: Ported from the browser build's "how to play", which is three lines, plus
 #: the one thing a terminal has to explain that a browser does not: a keyboard
@@ -114,7 +117,8 @@ class TitleScene:
     completely, so drawing underneath it would be wasted work.
     """
 
-    ITEMS = ("START DRIFTING", "CHOOSE A PILOT", "HOW TO PLAY", "QUIT")
+    ITEMS = ("START DRIFTING", "CHOOSE A PILOT", "HIGH SCORES",
+             "HOW TO PLAY", "QUIT")
 
     def __init__(self, app):
         self.app = app
@@ -142,6 +146,8 @@ class TitleScene:
         elif index == 1:
             self.app.choose_pilot()
         elif index == 2:
+            self.app.show_scores()
+        elif index == 3:
             self.app.show_rules()
         else:
             self.app.host.quit()
@@ -181,8 +187,14 @@ class TitleScene:
             return
 
         cx = r.width // 2
-        y = _draw_title(r, cx, self._menu_box_top(r))
-        r.ui_text(cx, y, theme.TAGLINE, fill=theme.DIM, anchor="n")
+        box_top = self._menu_box_top(r)
+        y = _draw_title(r, cx, box_top)
+        # Only if there is a row left for it. The title takes what it needs
+        # first — it is the bigger thing on the screen — and a tagline drawn
+        # anyway would land under the menu box and be painted over, which is a
+        # missing line that reads as a design choice rather than a bug.
+        if y < box_top:
+            r.ui_text(cx, y, theme.TAGLINE, fill=theme.DIM, anchor="n")
 
         self.menu.render()
 
@@ -372,6 +384,140 @@ class RulesScene:
         r.present()
 
 
+class InitialsScene:
+    """Who just did that.
+
+    Three characters, the way every cabinet has asked since before anyone
+    reading this was born. It sits over the finished run rather than replacing
+    it, so the board and the wreck stay visible behind the question.
+
+    Only shown when the score actually makes the table — being asked for your
+    name and then told you came 213th is worse than not being asked.
+    """
+
+    #: The run underneath stays on screen. This is the one scene in the game
+    #: that draws over something rather than instead of it.
+    render_below = True
+
+    def __init__(self, app, score: int):
+        self.app = app
+        self.score = score
+        self.typed = ""
+
+    def handle_key(self, key: str) -> bool:
+        if key == "backspace":
+            self.typed = self.typed[:-1]
+        elif key in ("enter", "space"):
+            self._confirm()
+        elif key == "escape":
+            # Recorded under whatever was last used rather than discarded. A
+            # score is a fact; the initials are a label on it.
+            self._confirm()
+        elif len(key) == 1 and key.isalnum():
+            if len(self.typed) < scores.INITIALS_LENGTH:
+                self.typed += key.upper()
+                if len(self.typed) == scores.INITIALS_LENGTH:
+                    # Filled up. Confirming still takes a keypress, so a typo
+                    # on the third letter is fixable.
+                    pass
+        else:
+            return False
+        return True
+
+    def _confirm(self) -> None:
+        self.app.record(self.score, self.typed or None)
+        self.app.host.pop_scene()
+
+    def update(self, dt: float) -> None:
+        pass
+
+    def render(self) -> None:
+        r = self.app.renderer
+        cx, cy = r.width // 2, r.height // 2
+        box_w = min(r.width - 4, 40)
+        r.draw_rect(cx - box_w // 2, cy - 3, box_w, 7, theme.MENU_BOX)
+
+        r.ui_text(cx, cy - 2, "A NEW HIGH SCORE", fill=theme.MENU_SELECTED,
+                  anchor="n")
+        r.ui_text(cx, cy - 1, str(self.score), fill=theme.VALUE, anchor="n")
+
+        slots = self.typed.ljust(scores.INITIALS_LENGTH, "_")
+        r.ui_text(cx, cy + 1, "  ".join(slots), fill=self.app.character.accent,
+                  anchor="n")
+        r.ui_text(cx, cy + 2, _fit(INITIALS_HELP, box_w - 2), fill=theme.DIM,
+                  anchor="n")
+        r.present()
+
+
+class ScoresScene:
+    """The table. Scrolls, because a hundred scores do not fit anywhere."""
+
+    def __init__(self, app):
+        self.app = app
+        self.offset = 0
+
+    def handle_key(self, key: str) -> bool:
+        if key in ("up", "w", "k"):
+            self.offset = max(0, self.offset - 1)
+        elif key in ("down", "s", "j"):
+            self.offset = min(self._max_offset(), self.offset + 1)
+        else:
+            self.app.to_title()
+        return True
+
+    def update(self, dt: float) -> None:
+        pass
+
+    def _viewport(self) -> int:
+        return max(1, self.app.renderer.height - 5)
+
+    def _max_offset(self) -> int:
+        return max(0, len(self.app.scores.load()) - self._viewport())
+
+    def render(self) -> None:
+        r = self.app.renderer
+        r.clear()
+        r.draw_rect(0, 0, r.width, r.height, theme.BG)
+        if _too_small(r, theme.MENU_MIN_COLS, theme.MENU_MIN_ROWS):
+            r.present()
+            return
+
+        entries = self.app.scores.load()
+        viewport = self._viewport()
+        self.offset = min(self.offset, max(0, len(entries) - viewport))
+
+        r.ui_text(r.width // 2, 1, "HIGH SCORES", fill=theme.TITLE, anchor="n")
+
+        if not entries:
+            r.ui_text(r.width // 2, r.height // 2, "no scores yet",
+                      fill=theme.DIM, anchor="n")
+            r.ui_text(r.width // 2, r.height // 2 + 1,
+                      "fly something and come back", fill=theme.DIM, anchor="n")
+            r.ui_text(2, r.height - 2, SCORES_HELP, fill=theme.DIM)
+            r.present()
+            return
+
+        left = max(2, r.width // 2 - 18)
+        y = 3
+        for i, entry in enumerate(entries[self.offset:self.offset + viewport],
+                                  start=self.offset + 1):
+            if y >= r.height - 2:
+                break
+            pilot = characters.BY_KEY.get(entry.extra.get("pilot", ""))
+            glyph = pilot.glyph if pilot else "   "
+            colour = pilot.accent if pilot else theme.VALUE
+            r.ui_text(left, y, f"{i:>3}. {entry.initials}", fill=theme.VALUE)
+            r.ui_text(left + 10, y, glyph, fill=colour)
+            r.ui_text(left + 15, y, f"{entry.score:>6}", fill=theme.MENU_SELECTED)
+            y += 1
+
+        more = len(entries) - (self.offset + viewport)
+        hint = "↑↓ scroll    any other key goes back" if (
+            more > 0 or self.offset) else SCORES_HELP
+        r.ui_text(2, r.height - 2, _fit(hint, r.width - 2), fill=theme.DIM)
+        r.present()
+
+
 class GameScene:
     """A run. Real time, thirty frames a second."""
 
@@ -403,6 +549,9 @@ class GameScene:
         self.score = 0
         self.frame = 0
         self.dead = False
+        # The last run's placing is not this run's. Cleared here rather than in
+        # __init__ so that R clears it too.
+        self.app.last_rank = None
         self._reproject()
         self.sky.seed(self.projection.world_w)
 
@@ -422,7 +571,12 @@ class GameScene:
 
     def _die(self) -> None:
         self.dead = True
-        self.app.record(self.score)
+        if self.app.qualifies(self.score):
+            # Pushed over the wreck, which stays on screen behind it.
+            self.app.enter_initials(self.score)
+        elif self.score > 0:
+            # Still recorded — it just did not earn being asked about.
+            self.app.record(self.score)
 
     # -- Frame -------------------------------------------------------
 
@@ -564,7 +718,9 @@ class GameScene:
 
     def _draw_death(self, r) -> None:
         cx, cy = r.width // 2, r.height // 2
-        for i, line in enumerate(("YOU DRIFTED OFF", f"score {self.score}",
+        rank = self.app.last_rank
+        placed = f"score {self.score}" + (f"    rank {rank}" if rank else "")
+        for i, line in enumerate(("YOU DRIFTED OFF", placed,
                                   "Enter to fly again    Esc for the title")):
             fill = theme.DEAD if i == 0 else theme.VALUE if i == 1 else theme.DIM
             r.ui_text(cx, cy - 1 + i, _fit(line, r.width - 2),
