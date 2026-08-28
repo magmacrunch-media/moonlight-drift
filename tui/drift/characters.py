@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from drift import portraits
+
 
 @dataclass(frozen=True)
 class Character:
@@ -30,15 +32,36 @@ class Character:
 
     key: str
     name: str
-    #: What the player is drawn as. Three cells at most; a wider one would be
-    #: bigger than the hitbox it stands for, which is a lie the player pays for.
+    #: What the player is drawn as in flight. Hand-authored and staying that
+    #: way: at two cells wide there is nothing to downsample a sprite *to*, and
+    #: a mark beats a three-pixel average of one.
     glyph: str
-    accent: str
     #: ``(w, h, offset_x, offset_y)`` in world units, from the browser build.
     hitbox: tuple[int, int, int, int]
     thrust: float
     gravity: float
     max_velocity: float
+
+    @property
+    def accent(self) -> str:
+        """The character's colour, taken from its own sprite.
+
+        Derived rather than declared. Picked by eye first, these were wrong
+        often enough to be worth the machine doing it: Fire Toad was coloured
+        from its flames rather than the toad, and the SVFP Van was cyan when
+        the van is magenta. See ``tools/make_portraits.py``.
+        """
+        return portraits.ACCENTS.get(self.key, "#c8c8c8")
+
+    @property
+    def portrait(self) -> tuple:
+        """The roster picture, or empty if the sprite is missing.
+
+        Not for use in play: in flight a pilot is about two cells wide and one
+        tall, which is a mark and not a picture. The roster has the width to
+        show a real one.
+        """
+        return portraits.PORTRAITS.get(self.key, ())
 
     def apply(self, player) -> None:
         """Put this character's physics and hitbox on a player."""
@@ -50,76 +73,76 @@ class Character:
 #: Wii port carries too. Three versions, one order — a character's number is
 #: the same wherever you play.
 ROSTER: tuple[Character, ...] = (
-    Character("cat-synth", "Synth Cat", '=^=', "#ff4fd8",
+    Character("cat-synth", "Synth Cat", '=^=',
               hitbox=(42, 30, -1, 18),
               thrust=-0.6, gravity=0.36, max_velocity=10.5),
-    Character("beava", "Beava", '<@>', "#c98a3a",
+    Character("beava", "Beava", '<@>',
               hitbox=(40, 35, 0, 0),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("vinny-bobarino", "Vinny Bobarino", '<D>', "#ffb347",
+    Character("vinny-bobarino", "Vinny Bobarino", '<D>',
               hitbox=(35, 35, 15, 0),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("darius-hodgekins", "Darius Hodgekins", '<H>', "#8ad3ff",
+    Character("darius-hodgekins", "Darius Hodgekins", '<H>',
               hitbox=(40, 35, 0, 0),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("roderick-tron", "Roderick Tron", '[T]', "#39ff6e",
+    Character("roderick-tron", "Roderick Tron", '[T]',
               hitbox=(40, 35, 0, 0),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("juanito-thompson", "Juanito Thompson", '<J>', "#ff7043",
+    Character("juanito-thompson", "Juanito Thompson", '<J>',
               hitbox=(40, 35, 0, 0),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("carl-spatski", "Carl Spatski", '<%>', "#b388ff",
+    Character("carl-spatski", "Carl Spatski", '<%>',
               hitbox=(42, 42, -1, -2),
               thrust=-0.65, gravity=0.4, max_velocity=10.5),
-    Character("dspum-balloon", "dspum balloon", '(o)', "#ff5fa2",
+    Character("dspum-balloon", "dspum balloon", '(o)',
               hitbox=(30, 38, 5, -3),
               thrust=-0.5, gravity=0.3, max_velocity=9.0),
-    Character("foresters-soul", "Forester's Soul", '}|{', "#5fe08a",
+    Character("foresters-soul", "Forester's Soul", '}|{',
               hitbox=(40, 40, 0, -2),
               thrust=-0.62, gravity=0.38, max_velocity=11.0),
-    Character("grocery-harrison", "Grocery Harrison", '[G]', "#ffd54f",
+    Character("grocery-harrison", "Grocery Harrison", '[G]',
               hitbox=(35, 30, 8, 5),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("didgeridoo-man", "Didgeridoo Man", '==D', "#d2691e",
+    Character("didgeridoo-man", "Didgeridoo Man", '==D',
               hitbox=(45, 35, 0, 0),
               thrust=-0.7, gravity=0.35, max_velocity=9.5),
-    Character("mountain-gnome", "Mountain Gnome", '/A\\', "#9ccc65",
+    Character("mountain-gnome", "Mountain Gnome", '/A\\',
               hitbox=(32, 32, 4, 0),
               thrust=-0.55, gravity=0.32, max_velocity=9.5),
-    Character("prince-vince", "Prince Vince", '<P>', "#7e57c2",
+    Character("prince-vince", "Prince Vince", '<P>',
               hitbox=(27, 38, 7, -3),
               thrust=-0.65, gravity=0.38, max_velocity=10.5),
-    Character("dag-henderson", "Dag Henderson", '<b>', "#4fc3f7",
+    Character("dag-henderson", "Dag Henderson", '<b>',
               hitbox=(40, 35, 0, 0),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("ban-daniel", "BANDANIEL", '<B>', "#ff1744",
+    Character("ban-daniel", "BANDANIEL", '<B>',
               hitbox=(38, 38, 1, -2),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("plantain-jane", "PLANTAIN JANE", '<J>', "#cddc39",
+    Character("plantain-jane", "PLANTAIN JANE", '<J>',
               hitbox=(38, 38, 1, -2),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("fire-toad", "Fire Toad", '<*>', "#ff6d00",
+    Character("fire-toad", "Fire Toad", '<*>',
               hitbox=(32, 32, 4, 0),
               thrust=-0.65, gravity=0.38, max_velocity=10.5),
-    Character("backpack-man", "Backpack Man", '[M]', "#8d6e63",
+    Character("backpack-man", "Backpack Man", '[M]',
               hitbox=(34, 36, 6, -2),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("tollbooth-lady", "Tollbooth Lady", '<T>', "#f06292",
+    Character("tollbooth-lady", "Tollbooth Lady", '<T>',
               hitbox=(40, 35, 0, 0),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("svfp-van", "SVFP Van", '[V]', "#26c6da",
+    Character("svfp-van", "SVFP Van", '[V]',
               hitbox=(36, 18, 4, 12),
               thrust=-0.6, gravity=0.4, max_velocity=10.0),
-    Character("tardigrade", "Tardigrade", '(~)', "#a1887f",
+    Character("tardigrade", "Tardigrade", '(~)',
               hitbox=(26, 25, 7, 8),
               thrust=-0.7, gravity=0.35, max_velocity=11.0),
-    Character("elektra", "Elektra", '<E>', "#00e5ff",
+    Character("elektra", "Elektra", '<E>',
               hitbox=(38, 38, 1, 0),
               thrust=-0.58, gravity=0.38, max_velocity=10.5),
-    Character("strawberto", "Strawberto", '<o>', "#ff3d71",
+    Character("strawberto", "Strawberto", '<o>',
               hitbox=(36, 38, 2, 0),
               thrust=-0.6, gravity=0.39, max_velocity=10.0),
-    Character("carl", "Carl", '<@>', "#ffee58",
+    Character("carl", "Carl", '<@>',
               hitbox=(38, 38, 1, 0),
               thrust=-0.62, gravity=0.37, max_velocity=11.0),
 )

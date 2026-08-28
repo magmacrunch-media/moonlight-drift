@@ -53,6 +53,32 @@ moonlight-drift --list-characters       the roster, without opening the game
 moonlight-drift --character fire-toad   fly as someone in particular
 ```
 
+## Portraits
+
+The roster shows each pilot's actual sprite, generated from the 48 PNGs the Wii
+port exported from the browser's canvas `draw()` calls. A cell is two stacked
+pixels — `▀` with its own foreground and background — which makes the pixel
+grid square in a terminal whose cells are twice as tall as they are wide, so a
+14-cell portrait is a real 14×16 image rather than a pictogram.
+
+```
+pip install -e ".[tools]"
+python tools/make_portraits.py     # rewrites drift/portraits.py
+python tools/show_portraits.py     # look at them, in truecolor
+```
+
+`drift/portraits.py` is **generated and committed**, so playing needs no image
+library and decodes nothing at runtime — Pillow is a tool here, not a
+dependency. Regenerate after a character is redrawn and re-exported.
+
+The accent colours come from the same place, saturation-weighted. Picked by eye
+first, several were simply wrong: Fire Toad had been coloured from its flames
+rather than the toad, and the SVFP Van was cyan when the van is magenta.
+
+Portraits want a truecolor terminal; on 256 colours they approximate. The
+in-play glyph stays hand-authored — at two cells wide there is nothing to
+downsample a sprite *to*.
+
 ## High scores
 
 Kept on disk, so a record outlives the session. **Filed under the same key the

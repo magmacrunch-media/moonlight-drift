@@ -865,3 +865,101 @@ def test_the_title_shows_the_best_on_record_not_just_this_session():
     app = hosted()
     app.scores.save("jam", 512)
     assert app.best == 512
+
+# ── Portraits ───────────────────────────────────────────────────────
+
+
+def test_every_pilot_has_a_portrait_and_a_colour():
+    """Generated from the Wii port's sprites, so there are 24 of each without
+    anybody drawing one."""
+    from drift import portraits
+
+    for pilot in characters.ROSTER:
+        assert pilot.key in portraits.PORTRAITS, pilot.key
+        assert pilot.portrait, pilot.key
+        assert pilot.accent.startswith("#") and len(pilot.accent) == 7, pilot.key
+
+
+def test_portraits_fit_the_box_they_are_laid_out_against():
+    """Fitted rather than scaled to width. Scaling by width alone produced
+    portraits between five and fifteen rows, and fifteen does not fit beside a
+    roster on an 80x24 terminal."""
+    from drift import portraits
+
+    for key, art in portraits.PORTRAITS.items():
+        assert len(art) <= 8, f"{key} is {len(art)} rows"
+        assert max(len(row) for row in art) <= portraits.WIDTH, key
+
+
+def test_a_portrait_is_half_blocks_with_colours():
+    """Two pixels per cell is what makes the grid square in a terminal whose
+    cells are twice as tall as they are wide."""
+    from drift import portraits
+
+    art = portraits.PORTRAITS["cat-synth"]
+    inked = [c for row in art for c in row if c is not None]
+    assert inked, "nothing drawn"
+    for glyph, fg, bg in inked:
+        assert glyph in ("▀", "▄")
+        assert fg.startswith("#")
+        assert bg is None or bg.startswith("#")
+
+
+def test_the_accent_comes_from_the_sprite_not_from_a_guess():
+    """The hand-picked ones were wrong often enough to be worth deriving:
+    Fire Toad was coloured from its flames rather than the toad."""
+    from drift import portraits
+
+    assert characters.get("fire-toad").accent == portraits.ACCENTS["fire-toad"]
+    # Green, because the toad is green. Not the orange of its flames.
+    r, g, b = (int(characters.get("fire-toad").accent[i:i + 2], 16)
+               for i in (1, 3, 5))
+    assert g > r and g > b, "Fire Toad should be green"
+
+
+def test_the_generated_data_needs_no_image_library():
+    """Pillow makes the portraits; it is not there when anybody plays."""
+    import subprocess
+    import sys
+
+    code = ("import sys, drift.portraits, drift.characters; "
+            "print([m for m in sys.modules if m.startswith('PIL')])")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                         text=True, check=True)
+    assert out.stdout.strip() == "[]", out.stdout
+
+
+def test_the_roster_draws_the_portrait_in_colour():
+    app = hosted()
+
+    async def go():
+        async with await _piloted(app, size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.choose_pilot()
+            settle(app)
+            await asyncio.sleep(0.3)
+            buf = app.host.game.surface.buffer
+            found = {buf.get(x, y).fg
+                     for y in range(3, 11) for x in range(50, 79)
+                     if buf.get(x, y).fg}
+            assert len(found) > 10, f"portrait not drawn in colour: {found}"
+            app.host.quit()
+
+    run(go())
+
+
+def test_a_narrow_window_drops_the_portrait_rather_than_the_names():
+    """The list is the point of the screen; the picture is the bonus."""
+    app = hosted()
+
+    async def go():
+        async with await _piloted(app, size=(theme.MENU_MIN_COLS, 20)) as pilot:
+            await pilot.pause()
+            app.choose_pilot()
+            settle(app)
+            await asyncio.sleep(0.3)
+            text = buffer_text(app)
+            assert "Synth Cat" in text, "the roster must survive"
+            app.host.quit()
+
+    run(go())

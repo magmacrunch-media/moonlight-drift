@@ -275,6 +275,27 @@ class PilotScene:
     def update(self, dt: float) -> None:
         pass
 
+    def _draw_portrait(self, r, pilot, x: int, y: int) -> None:
+        """The highlighted pilot's own sprite, at two pixels per cell.
+
+        Each cell is an upper or lower half block with its own foreground and
+        background, which is what makes the pixels square in a grid of cells
+        that are twice as tall as they are wide. Generated from the Wii port's
+        PNGs — see ``tools/make_portraits.py``.
+
+        **Wants a truecolor terminal.** On 256 colours it will approximate and
+        look muddy; the list and the stats carry the screen regardless, so a
+        poor portrait costs nothing but a poor portrait.
+        """
+        for row, cells in enumerate(pilot.portrait):
+            for col, cell in enumerate(cells):
+                if cell is None:
+                    continue
+                glyph, fg, bg = cell
+                if bg:
+                    r.ui_rect(x + col, y + row, 1, 1, fill=bg)
+                r.ui_text(x + col, y + row, glyph, fill=fg)
+
     def render(self) -> None:
         r = self.app.renderer
         r.clear()
@@ -291,7 +312,16 @@ class PilotScene:
         r.ui_text(r.width // 2, 1, "CHOOSE A PILOT", fill=theme.TITLE,
                   anchor="n")
 
-        left = max(2, r.width // 2 - 16)
+        # The list keeps the left; a portrait, when there is one and the
+        # window is wide enough to hold it beside rather than on top of the
+        # names, takes the right.
+        highlighted = characters.ROSTER[self.selected]
+        portrait = highlighted.portrait
+        art_w = max((len(row) for row in portrait), default=0)
+        room = r.width - art_w - 6
+        show_art = bool(portrait) and room >= 26
+
+        left = 3 if show_art else max(2, r.width // 2 - 16)
         y = 3
         window = characters.ROSTER[self.offset:self.offset + viewport]
         for i, pilot in enumerate(window, start=self.offset):
@@ -304,7 +334,10 @@ class PilotScene:
                       fill=colour)
             y += 1
 
-        pilot = characters.ROSTER[self.selected]
+        if show_art:
+            self._draw_portrait(r, highlighted, r.width - art_w - 3, 3)
+
+        pilot = highlighted
         stats = (f"thrust {pilot.thrust:+.2f}   gravity {pilot.gravity:.2f}   "
                  f"top speed {pilot.max_velocity:.1f}")
         r.ui_text(r.width // 2, r.height - 3, _fit(stats, r.width - 2),
