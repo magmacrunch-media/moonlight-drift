@@ -395,3 +395,27 @@ def test_a_span_straddling_the_gap_edge_still_draws():
                            asymmetry=0.0)
     left, right = o.extent(285, 318)
     assert right > left
+
+def test_a_scrolling_column_keeps_its_width():
+    """The vibration.
+
+    A column moves 0.18 cells per frame. Rounding its two edges to cells
+    independently means they cross their boundaries at different moments, so
+    the width pulses between three and four cells thirty times a second and the
+    whole field appears to shimmer. Taking the width from the world span
+    instead lets only the position move, which is what is actually happening.
+    """
+    p = projection.compute(cols=80, rows=22, origin_y=1)
+    o = obstacles.Obstacle(x=400.0, top_height=430, bottom_y=610,
+                           style_index=2, seed=0.4, roughness=0.8,
+                           asymmetry=0.5)
+    top_w = int((5 - p.origin_y) / p.scale_y)
+    bottom_w = int((6 - p.origin_y) / p.scale_y)
+
+    widths = []
+    for frame in range(14):
+        o.x = 400.0 - frame * config.OBSTACLE_SPEED
+        left, right = o.extent(top_w, bottom_w)
+        widths.append(max(1, round(p.w(right - left))))
+
+    assert len(set(widths)) == 1, f"width flickered while scrolling: {widths}"

@@ -720,8 +720,17 @@ class GameScene:
                 left, right = o.extent(top_w, bottom_w)
                 if right <= left:
                     continue
-                c0, c1 = p.col(left), p.col(right)
-                for col in range(max(0, c0), min(r.width, max(c1, c0 + 1))):
+                # The width comes from the world width, not from rounding the
+                # two edges apart. Truncated independently they cross their
+                # cell boundaries at different moments, so a scrolling column
+                # pulses between three and four cells wide -- thirty times a
+                # second, which reads as the whole field vibrating. Rounding
+                # the span once keeps the width steady and lets only the
+                # position move, which is what is actually happening.
+                c0 = p.col(left)
+                span = max(1, round(p.w(right - left)))
+                c1 = c0 + span
+                for col in range(max(0, c0), min(r.width, c1)):
                     edge = col in (c0, c1 - 1)
                     r.ui_text(col, row,
                               theme.COLUMN_EDGE if edge else theme.COLUMN,
