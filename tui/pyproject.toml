@@ -10,7 +10,7 @@ build-backend = "hatchling.build"
 # The distribution is namespaced; the import package stays plain `drift`,
 # because that is what you type in code and it is not competing for anything.
 name = "magmacrunch-moonlight-drift"
-version = "0.1.0"
+version = "0.2.0"
 description = "Moonlight Drift — terminal version"
 readme = "README.md"
 license = "PolyForm-Noncommercial-1.0.0"
