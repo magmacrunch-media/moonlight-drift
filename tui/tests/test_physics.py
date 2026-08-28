@@ -311,3 +311,87 @@ def test_two_runs_from_the_same_seed_are_identical():
             f.update()
     assert [(o.x, o.top_height, o.style_index) for o in a.obstacles] == \
            [(o.x, o.top_height, o.style_index) for o in b.obstacles]
+
+# ── Drawing a column at terminal resolution ─────────────────────────
+
+
+def test_the_extent_of_a_span_covers_it_to_within_a_fraction_of_a_cell():
+    """The drawn shape stands in for every world row a cell covers.
+
+    Not exactly: four samples across thirty-odd world units can miss a sine
+    peak between them. What matters is that the miss stays well inside one
+    cell, because the result is rounded to whole cells anyway — a shape that
+    was out by a cell would mean dying on something that was never drawn.
+    """
+    p = projection.compute(cols=80, rows=22, origin_y=1)
+    tolerance_cells = 0.5
+
+    worst = 0.0
+    for style in range(3):
+        for seed in (0.0, 0.2, 0.4, 0.6, 0.8):
+            o = obstacles.Obstacle(x=380.0, top_height=430, bottom_y=610,
+                                   style_index=style, seed=seed,
+                                   roughness=1.0, asymmetry=1.0)
+            for top in range(0, 400, 33):
+                lo_e, hi_e = o.extent(top, top + 33)
+                for y in range(top, top + 33):
+                    lo, hi = o.silhouette(y)
+                    if hi > lo:
+                        worst = max(worst, lo_e - lo, hi - hi_e)
+    assert worst * p.scale_x < tolerance_cells, (
+        f"missed by {worst * p.scale_x:.2f} cells")
+
+
+def test_sampling_a_span_is_steadier_than_sampling_a_point():
+    """The squiggle. One terminal row covers about 33 world units and the
+    silhouette completes two and a half sine turns inside that, so a single
+    sample per row lands on an arbitrary phase and the edge jitters a cell
+    either way with no relation to the shape."""
+    o = obstacles.Obstacle(x=380.0, top_height=430, bottom_y=610,
+                           style_index=2, seed=0.4, roughness=0.8,
+                           asymmetry=0.5)
+    p = projection.compute(cols=80, rows=22, origin_y=1)
+
+    def jitter(edges):
+        """How often the edge moves between one row and the next."""
+        return sum(1 for a, b in zip(edges, edges[1:], strict=False) if a != b)
+
+    point, span = [], []
+    for row in range(1, 13):
+        top_w = int((row - p.origin_y) / p.scale_y)
+        bottom_w = int((row + 1 - p.origin_y) / p.scale_y)
+        mid = int((row + 0.5 - p.origin_y) / p.scale_y)
+        if mid >= o.top_height:
+            break
+        point.append(p.col(o.silhouette(mid)[0]))
+        span.append(p.col(o.extent(top_w, bottom_w)[0]))
+
+    assert jitter(span) < jitter(point), (
+        f"span sampling should be steadier: {span} vs {point}")
+
+
+def test_the_taper_survives_the_smoothing():
+    """Only the wobble is lost. The taper varies over the column's whole
+    length rather than within one cell, so it is still resolvable."""
+    o = obstacles.Obstacle(x=100.0, top_height=700, bottom_y=880,
+                           style_index=1, seed=0.0, roughness=0.5,
+                           asymmetry=0.0)
+    tip = o.extent(0, 33)
+    mouth = o.extent(660, 693)
+    assert (tip[1] - tip[0]) > (mouth[1] - mouth[0])
+
+
+def test_a_span_entirely_inside_the_gap_draws_nothing():
+    o = obstacles.Obstacle(x=100.0, top_height=300, bottom_y=480,
+                           style_index=0, seed=0.5, roughness=0.5,
+                           asymmetry=0.0)
+    assert o.extent(360, 393) == (0.0, 0.0)
+
+
+def test_a_span_straddling_the_gap_edge_still_draws():
+    """Half in, half out: the cell has solid in it, so it is solid."""
+    o = obstacles.Obstacle(x=100.0, top_height=300, bottom_y=480,
+                           style_index=0, seed=0.5, roughness=0.5,
+                           asymmetry=0.0)
+    left, right = o.extent(285, 318)
+    assert right > left

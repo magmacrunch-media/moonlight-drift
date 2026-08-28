@@ -85,6 +85,20 @@ otherwise. Nothing is sent anywhere: see `texastoast.scores`.
 None of it imports the engine. `tests/test_physics.py` runs with nothing but
 pytest on the machine, which is what proves that claim.
 
+## Drawing a column
+
+The columns taper and wander sideways on a sine. In the browser that wander is
+a fine ripple down a 300-pixel column — surface texture. A terminal row covers
+about 33 world units, and the sine completes **two and a half turns inside one
+of them**, so sampling once per row lands on an arbitrary phase and draws
+noise: the edge jitters a cell either way with no relation to the shape.
+
+So a cell asks what the column does across the whole span it covers and takes
+the outermost answer. The wobble collapses into a stable envelope and the taper
+survives, because the taper varies over the column's length rather than within
+a cell. The wobble is not lost to a simplification — it was never resolvable at
+this size, and what was being drawn instead was aliasing.
+
 ## The two things a terminal changes
 
 **A character cell is about twice as tall as it is wide.** The Wii port has the

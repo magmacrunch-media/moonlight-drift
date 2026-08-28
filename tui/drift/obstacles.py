@@ -86,6 +86,45 @@ class Obstacle:
     #: The palette this column wears, rotated in runs rather than per obstacle.
     theme: Theme | None = None
 
+    def extent(self, top_y: int, bottom_y: int, samples: int = 4
+               ) -> tuple[float, float]:
+        """The widest the column gets anywhere between two world rows.
+
+        A character cell is about thirty world units tall, and the silhouette
+        wanders on a sine fast enough to complete two and a half turns inside
+        one of them. Sampling once per cell therefore lands on an arbitrary
+        phase and draws noise: the edge jitters a cell either way, row to row,
+        with no relationship to the shape. In the browser the same wave is a
+        fine ripple down a 300-pixel column — surface texture, which a terminal
+        simply cannot resolve.
+
+        So a cell asks what the column does across the whole span it covers,
+        and takes the outermost answer. The jitter collapses into a stable
+        envelope and the taper survives, because the taper varies over the
+        column's length rather than within a single cell.
+
+        **It is a sampled envelope, not an exact one.** Four samples across
+        thirty-odd world units can miss a sine peak between them, by up to a
+        quarter of a cell at the amplitudes this game uses — measured, not
+        assumed. More samples buy very little: twelve still misses a
+        fourteenth of a cell, because no finite number of them can catch every
+        peak of a continuous wave. A quarter of a cell disappears into the
+        rounding to whole cells that follows, and paying frames for the
+        difference would be paying for nothing.
+        """
+        left, right = None, None
+        span = max(1, bottom_y - top_y)
+        for i in range(samples):
+            y = top_y + span * i // samples
+            lo, hi = self.silhouette(y)
+            if hi <= lo:
+                continue
+            left = lo if left is None else min(left, lo)
+            right = hi if right is None else max(right, hi)
+        if left is None:
+            return (0.0, 0.0)
+        return (left, right)
+
     def silhouette(self, world_y: int) -> tuple[float, float]:
         """``(left, right)`` of the solid part at ``world_y``.
 

@@ -677,10 +677,14 @@ class GameScene:
             palette = o.theme
             for row in range(top_row, bottom_row):
                 # The world y this row's centre stands for.
-                world_y = int((row + 0.5 - p.origin_y) / p.scale_y)
-                if o.top_height <= world_y <= o.bottom_y:
+                # The world rows this one cell covers, asked as a span rather
+                # than a point — see Obstacle.extent for why sampling once
+                # draws noise instead of a column.
+                top_w = int((row - p.origin_y) / p.scale_y)
+                bottom_w = int((row + 1 - p.origin_y) / p.scale_y)
+                if o.top_height <= top_w and bottom_w <= o.bottom_y:
                     continue
-                left, right = o.silhouette(world_y)
+                left, right = o.extent(top_w, bottom_w)
                 if right <= left:
                     continue
                 c0, c1 = p.col(left), p.col(right)
