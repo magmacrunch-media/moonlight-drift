@@ -7,6 +7,7 @@ One repo, every version of the game.
 |---------|--------|--------|---------------|
 | Browser | [`web/`](web/) | [adenosine](https://github.com/magmacrunchmedia/adenosine) | [magmacrunch.com/arcade/moonlight-drift](https://magmacrunch.com/arcade/moonlight-drift/) |
 | Wii | [`wii/`](wii/) | [magnolia](https://github.com/magmacrunchmedia/magnolia) | Homebrew Channel |
+| Terminal | [`tui/`](tui/) | [texastoast](https://pypi.org/project/texastoast/) | any terminal |
 
 ## Layout
 
@@ -16,13 +17,20 @@ One repo, every version of the game.
 - `wii/` — the Wii port. Builds with devkitPPC and expects the magnolia engine
   checked out beside this repo (`../../magnolia` from inside `wii/`). See
   [`wii/README.md`](wii/README.md).
+- `tui/` — the terminal version. Runs on the
+  [texastoast](https://pypi.org/project/texastoast/) engine's terminal backend.
+  Install with `pipx install magmacrunch-moonlight-drift` and launch with
+  `moonlight-drift`. Also available as part of the
+  [magmacrunch](https://pypi.org/project/magmacrunch/) arcade.
+  See [`tui/README.md`](tui/README.md).
 
 ## Working on the game
 
-A gameplay or balance change usually lands in both versions: the browser
-sources under `web/js/` are the reference implementation, and the Wii port's C
-modules cite the `web/js/` file each behaviour came from. Change `web/` first,
-then carry the change into `wii/source/`.
+A gameplay or balance change usually lands in all three versions: the browser
+sources under `web/js/` are the reference implementation, and both the Wii
+port's C modules and the TUI's Python scenes cite the `web/js/` file each
+behaviour came from. Change `web/` first, then carry the change into
+`wii/source/` and `tui/`.
 
 This repo was formed from `moonlight-drift-wii` (whose history it keeps) plus
 the browser version imported from the website repo.
