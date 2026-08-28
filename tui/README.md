@@ -22,7 +22,14 @@ pip install -e ".[dev]"
 python -m drift
 ```
 
-Hold SPACE or ↑ to climb, release to fall, thread the columns. It is also a
+Tap SPACE or ↑ to climb, hold to keep climbing, release to fall.
+
+**Thrust is a press, not a held key** — a terminal cannot report that a key is
+still down, only that it was pressed, and a keyboard goes silent for about half
+a second before it starts repeating. Reading held state through that silence
+gives a boost that cuts out exactly when you press it. So each press is a hop
+whose arc outlasts the repeat delay: holding reads as a continuous climb, and a
+single tap is a crisp one. See `drift/config.py`. It is also a
 cabinet in the [magmacrunch](https://github.com/magmacrunchmedia/magmacrunch)
 arcade, and plays identically either way.
 

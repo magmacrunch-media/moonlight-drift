@@ -33,6 +33,21 @@ DEFAULT_THRUST = -0.6
 DEFAULT_GRAVITY = 0.4
 DEFAULT_MAX_VELOCITY = 10.0
 
+#: A keypress sets the climb rate to ``thrust * FLAP`` rather than nudging it.
+#:
+#: The browser holds a key down and accumulates thrust every frame. A terminal
+#: cannot do that: a keyboard sends one event, then goes silent for the repeat
+#: *delay* — half a second on a typical machine — before repeats begin. Thrust
+#: inferred from held state therefore cuts out for a third of a second exactly
+#: when you first press, which reads as a boost that does not work.
+#:
+#: So a press is an impulse instead. Ten is not arbitrary: it makes one flap
+#: rise for about 570ms, which is longer than the repeat delay, so holding the
+#: key reads as a continuous climb and a single tap is still a crisp,
+#: controllable hop. Raising ``hold_ms`` past the delay instead was measured at
+#: 72 world units of climb after release — a boost you cannot aim.
+FLAP = 10.0
+
 #: The exhaust plume is drawn below the hitbox and is not solid — collision
 #: measures the player's bottom edge above it. See ``obstacles_check_collision``.
 FLAME_HEIGHT = 15
@@ -51,7 +66,7 @@ PLAYER_HEIGHT = 35
 
 __all__ = [
     "DEFAULT_GRAVITY", "DEFAULT_MAX_VELOCITY", "DEFAULT_THRUST",
-    "FLAME_HEIGHT", "GAP", "MAX_OBSTACLE_HEIGHT", "MIN_OBSTACLE_HEIGHT",
+    "FLAME_HEIGHT", "FLAP", "GAP", "MAX_OBSTACLE_HEIGHT", "MIN_OBSTACLE_HEIGHT",
     "OBSTACLE_SPAWN_INTERVAL", "OBSTACLE_SPEED", "OBSTACLE_WIDTH",
     "PLAYER_HEIGHT", "PLAYER_WIDTH", "PLAYER_X", "PLAYER_Y_INITIAL",
     "STAR_COUNT", "THEME_CHANGE_INTERVAL", "WORLD_HEIGHT", "WORLD_WIDTH",

@@ -18,19 +18,20 @@ INFO = GameInfo(
     key="moonlight-drift",
     title="Moonlight Drift",
     blurb="Thread the columns. Hold to climb, release to fall.",
-    # The first real-time game in the family, and the first to want either of
-    # these to be anything but the default.
+    # Real-time, but edge-driven, which is an unusual pair and worth saying.
     #
     # 30 fps because the world moves whether or not a key was pressed, and 20
     # is visibly steppy once something is scrolling.
     #
-    # hold_ms is the whole reason the engine has it. A terminal reports key
-    # presses and never releases, so a held thrust has to be inferred from
-    # auto-repeat: 140ms is comfortably above a typical repeat interval, so a
-    # held key reads as held, and short enough that letting go registers
-    # within about two frames.
+    # hold_ms is 0 — the default — even though this is the only game here that
+    # wants a held control. Held state in a terminal is inferred from key
+    # repeat, and a keyboard sends one event and then goes silent for its
+    # repeat *delay*, around half a second, before repeating. Thrust read
+    # through that silence cuts out for a third of a second exactly when you
+    # first press, which is a boost that does not work. So a press is an
+    # impulse instead (see config.FLAP) and held state is never consulted.
     fps=30,
-    hold_ms=140,
+    hold_ms=0,
     min_cols=theme.MIN_COLS,
     min_rows=theme.MIN_ROWS,
 )

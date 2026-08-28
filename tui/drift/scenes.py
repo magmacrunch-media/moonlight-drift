@@ -10,22 +10,19 @@ knows what Textual is.
 **This is the first real-time game on the terminal backend**, and two things
 follow from that which the two turn-based ones never had to face.
 
-*Thrust is a held button, and a terminal has none.* A terminal reports key
-presses and never releases, so "is the key down right now" cannot be asked —
-it can only be inferred from auto-repeat, which is what the engine's
-``TuiInput`` decay does and what ``GameInfo.hold_ms`` sets. The game polls once
-a frame and gets an answer good to about one repeat interval. It is not a
-gamepad, but it is a playable approximation, and it is the reason this game
-declares ``hold_ms`` at all.
+*A terminal cannot tell you a key is held.* It sees presses and never
+releases, so held state has to be inferred from key repeat — and a keyboard
+sends one event, then goes silent for its repeat *delay* (about half a second)
+before repeating. Thrust read through that silence cuts out for a third of a
+second exactly when you first press, which is a boost that does not work. That
+was shipped once and had to be found by simulating a real keyboard rather than
+the instant repeats a test loop produces.
 
-*Poll once a frame; do not ask ``is_pressed``.* ``TuiInput`` reports a button
-as active if it is inside its hold window **or** in the edge set, and the edge
-set is cleared by ``poll()`` and by nothing else. A real-time game built on
-``is_pressed`` alone latches the first press on forever — which reads as a
-game that flies into the ceiling and cannot be steered, with no error
-anywhere. Both of the two bugs that cost this port an afternoon were this
-family: that one, and the Enter that starts a run being the same gamepad
-button as thrust.
+So thrust is an impulse per press instead, applied in :meth:`GameScene.handle_key`
+rather than read from held state. One flap rises for longer than the repeat
+delay, so holding reads as a continuous climb and a single tap is a crisp hop.
+:mod:`drift.config` has the arithmetic. ``poll()`` is still called once a frame,
+but only to clear the input source's edge set.
 
 *The frame is a real frame.* A turn-based game repaints on a keypress; this one
 repaints thirty times a second whether anything happened or not, which is the
@@ -51,17 +48,18 @@ INITIALS_HELP = "Enter confirms    Backspace fixes"
 SCORES_HELP = "any key goes back"
 
 #: Ported from the browser build's "how to play", which is three lines, plus
-#: the one thing a terminal has to explain that a browser does not: a keyboard
-#: reports presses and never releases, so a held thrust is inferred from
-#: auto-repeat and behaves a little differently from holding a mouse button.
+#: the one thing a terminal has to explain that a browser does not: a keypress
+#: is a hop rather than a held control, because a terminal cannot report that
+#: a key is still down.
 RULES = (
     ("FLYING", (
-        "Hold SPACE or the up arrow to climb. Release to fall. That is the "
-        "whole control scheme.",
-        "In a terminal a held key is not something a program can observe - "
-        "keyboards report presses and never releases. Thrust is inferred from "
-        "the key repeating, so it lets go about a tenth of a second after you "
-        "do.",
+        "Tap SPACE or the up arrow to climb, and hold it to keep climbing. "
+        "Release to fall.",
+        "A terminal cannot tell that a key is being held — it only ever sees "
+        "presses — so each press is a hop of its own, and holding works "
+        "because the keyboard repeats. One tap is a full, predictable climb "
+        "rather than a nudge, which makes threading a gap a matter of timing "
+        "rather than of leaning on a key.",
     )),
     ("DYING", (
         "The columns are lethal, and so are the top and bottom of the world. "
@@ -86,11 +84,12 @@ RULES = (
 #: These are *key* names, used only to swallow the keypress in ``handle_key``.
 THRUST_KEYS = ("space", "up", "w")
 
-# Note the two vocabularies. These are *key* names; the engine speaks
-# *buttons*, and ``TuiInput.KEY_MAP`` folds space/enter/z into the gamepad
-# button "a" and up/w/k into "up". Asking ``is_pressed("space")`` is therefore
-# always False — a trap worth naming, because it fails silently as a game that
-# simply will not fly. ``update()`` reads the buttons off ``poll()``.
+# These are *key* names, and they are what this game reads: thrust arrives as
+# discrete presses through handle_key. The engine also speaks a *button*
+# vocabulary — TuiInput.KEY_MAP folds space/enter/z into "a" and up/w/k into
+# "up" — which is what poll() and is_pressed() answer in. Worth naming because
+# asking is_pressed("space") is always False, and fails silently as a game that
+# will not fly.
 
 
 def _fit(text: str, width: int) -> str:
@@ -569,6 +568,17 @@ class GameScene:
             origin_y=theme.HEADER_ROWS,
         )
 
+    def _flap(self) -> None:
+        """One press, one climb.
+
+        The rate is set rather than added to, so holding the key — which is
+        just the terminal repeating it — pins a steady climb instead of
+        accelerating without limit, and a rapid tapper cannot stack flaps into
+        something the physics never intended.
+        """
+        if not self.dead:
+            self.player.velocity = self.player.thrust * config.FLAP
+
     def _die(self) -> None:
         self.dead = True
         if self.app.qualifies(self.score):
@@ -588,19 +598,14 @@ class GameScene:
         self.frame += 1
         self.sky.update()
 
-        # Held state, inferred from auto-repeat. See the module docstring.
-        #
-        # `poll()` rather than `is_pressed()`, and the difference is not
-        # stylistic. `TuiInput` reports a button as active if it is either
-        # within its hold window *or* in the edge set — and the edge set is
-        # cleared by `poll()` and nothing else. A real-time game that only ever
-        # asked `is_pressed` would latch the first press on forever and fly
-        # straight into the ceiling. One poll per frame is the protocol's own
-        # shape; `is_pressed` is for asking again about a frame already polled.
-        state = self.app.host.input.poll()
-        thrust = state.a or state.up
+        # Polled once a frame so the input source's edge set is cleared, and
+        # for nothing else: thrust does not come from held state any more. It
+        # arrives as impulses in handle_key, because a keyboard goes silent for
+        # its repeat delay after the first press and held state read through
+        # that silence cuts out exactly when you press. See config.FLAP.
+        self.app.host.input.poll()
 
-        if self.player.update(thrust):
+        if self.player.update(thrust_active=False):
             self._die()
             return
 
@@ -624,8 +629,7 @@ class GameScene:
         elif self.dead and key in ("enter", "space"):
             self.restart()
         elif key in THRUST_KEYS:
-            # The press itself is handled by the held-state decay in update();
-            # swallowing it here stops it reaching anything underneath.
+            self._flap()
             return True
         else:
             return False

@@ -57,6 +57,19 @@ def hosted(seed: int = 3) -> DriftApp:
     return app
 
 
+def tap(app: DriftApp, key: str = "space") -> None:
+    """A keypress the way the host delivers one.
+
+    TuiHost drains the input source into the top scene and *then* updates, so a
+    test that only calls press() never reaches handle_key — and thrust is a
+    press now, not a held state. Getting this wrong is how the first version of
+    these tests passed against a game nobody could fly.
+    """
+    app.host.input.press(key)
+    for pressed in app.host.input.drain():
+        app.host.stack.dispatch_key(pressed)
+
+
 def flying(seed: int = 3) -> tuple[DriftApp, GameScene]:
     app = hosted(seed)
     app.start_run()
@@ -84,12 +97,17 @@ def test_the_game_is_a_valid_arcade_cabinet():
     assert GAME.info.key == "moonlight-drift"
 
 
-def test_it_asks_for_a_real_time_terminal():
-    """The first game in the family to want either of these to be anything but
-    the default. Without hold_ms a held thrust is unreadable; at 20 fps a
-    scrolling world is visibly steppy."""
+def test_it_asks_for_a_real_time_terminal_but_edge_driven_input():
+    """An unusual pair, and worth pinning.
+
+    30 fps because the world moves whether or not a key was pressed. hold_ms 0
+    because held state in a terminal is inferred from key repeat, and a
+    keyboard is silent for its repeat *delay* before repeating — thrust read
+    through that silence cuts out exactly when you press. Thrust is an impulse
+    instead, so held state is never consulted.
+    """
     assert GAME.info.fps == 30
-    assert GAME.info.hold_ms >= 100
+    assert GAME.info.hold_ms == 0
 
 
 def test_start_returns_a_scene_without_pushing_it():
@@ -164,18 +182,61 @@ def test_falling_with_no_input_ends_the_run():
     assert scene.dead
 
 
-def test_holding_thrust_keeps_you_up():
-    """The held-state read is the whole reason this game declares hold_ms."""
+def test_a_tap_climbs():
     app, scene = flying()
-    source = app.host.input
     start = scene.player.y
-    # Fifteen frames, not sixty: thrust held long enough climbs into the
-    # ceiling, which is what the next test is about.
-    for _ in range(15):
-        source.press("space")          # auto-repeat, as a terminal delivers it
+    tap(app)
+    app.host.stack.update(1 / 30)
+    assert scene.player.velocity < 0, "a press should set a climb"
+    assert scene.player.y < start
+
+
+def test_a_tap_sets_the_climb_rather_than_adding_to_it():
+    """Holding pins a steady climb instead of accelerating without limit, and
+    a rapid tapper cannot stack flaps into something the physics never
+    intended."""
+    app, scene = flying()
+    for _ in range(5):
+        tap(app)
+    expected = scene.player.thrust * config.FLAP
+    assert scene.player.velocity == pytest.approx(expected)
+
+
+def test_one_tap_carries_past_the_keyboards_repeat_delay():
+    """The whole reason thrust is an impulse.
+
+    A keyboard sends one event and then goes silent for about 500ms before
+    repeating. If a single flap stopped lifting before that, holding the key
+    would visibly stall — which is precisely the bug this replaced.
+    """
+    app, scene = flying()
+    tap(app)
+    frames = 0
+    while scene.player.velocity < 0:
         app.host.stack.update(1 / 30)
-    assert not scene.dead
-    assert scene.player.y < start, "should have climbed"
+        frames += 1
+    assert frames / 30 * 1000 > 500, "a flap must outlast the repeat delay"
+
+
+def test_holding_climbs_without_a_dead_patch():
+    """Simulated against a real keyboard: one press, silence, then repeats.
+    The old held-state reading fell for a third of a second in the middle of
+    this, which is what 'the boost does not work' looked like."""
+    app, scene = flying()
+    start = scene.player.y
+    highest = start
+    last_repeat = None
+    for frame in range(30):
+        now_ms = frame * 1000 / 30
+        if now_ms == 0 or (now_ms >= 500 and
+                           (last_repeat is None or now_ms - last_repeat >= 33)):
+            tap(app)
+            last_repeat = now_ms
+        app.host.stack.update(1 / 30)
+        highest = min(highest, scene.player.y)
+        assert scene.player.y <= start + 1, (
+            f"sank below the start at {now_ms:.0f}ms — the dead patch is back")
+    assert highest < start - 40, "should have made real height"
 
 
 def test_a_run_does_not_inherit_the_key_that_started_it():
@@ -207,46 +268,22 @@ def test_restarting_after_a_crash_does_not_inherit_the_enter_either():
     assert not scene.dead
 
 
-def test_thrust_lets_go_when_the_keys_stop_coming():
-    """The regression that cost this port an afternoon.
-
-    TuiInput reports a button active if it is inside its hold window *or* in
-    the edge set, and the edge set is cleared by poll() and nothing else. Built
-    on is_pressed alone, the first press latches thrust on forever and the game
-    flies into the ceiling with no error anywhere. Polling once a frame is what
-    makes letting go mean anything.
-    """
+def test_thrust_stops_when_the_taps_do():
     app, scene = flying()
-    source = app.host.input
-    # A clock the test advances, so hold_ms means frames rather than
-    # whatever wall time a fast loop happens to take.
-    now = [0.0]
-    source._clock = lambda: now[0]
-    source.clear()
-
-    for _ in range(6):
-        now[0] += 1000 / 30
-        source.press("space")
+    tap(app)
+    for _ in range(25):
         app.host.stack.update(1 / 30)
-    climbing = scene.player.velocity
-    assert climbing < 0, "should be climbing while the key repeats"
-
-    # Stop pressing. Well past hold_ms, thrust must have let go.
-    for _ in range(20):
-        now[0] += 1000 / 30
-        app.host.stack.update(1 / 30)
-    assert scene.player.velocity > 0, "thrust latched on after the key stopped"
+    assert scene.player.velocity > 0, "should be falling again"
 
 
 def test_the_ceiling_is_lethal_too():
     app, scene = flying()
-    source = app.host.input
     for _ in range(400):
-        source.press("space")
+        tap(app)
         app.host.stack.update(1 / 30)
         if scene.dead:
             break
-    assert scene.dead, "holding thrust forever should fly you into the ceiling"
+    assert scene.dead, "climbing forever should fly you into the ceiling"
 
 
 def test_clearing_a_column_scores():
@@ -300,7 +337,7 @@ def test_the_same_seed_flies_the_same_run():
     def fly(seed):
         app, scene = flying(seed)
         for _ in range(200):
-            app.host.input.press("space")
+            tap(app)
             app.host.stack.update(1 / 30)
         return [(round(o.x, 3), o.top_height) for o in scene.field.obstacles]
 
