@@ -1,7 +1,7 @@
 # Moonlight Drift — terminal version
 
 The third version of the game, alongside `web/` (browser) and `wii/`. Runs on
-the [texastoast](https://pypi.org/project/texastoast/) engine's terminal
+the [magmacrunch.engine](https://pypi.org/project/magmacrunch/) engine's terminal
 backend.
 
 ```
@@ -112,7 +112,7 @@ MAGMACRUNCH_DATA_DIR=/somewhere/else moonlight-drift
 ```
 
 The board lives under your platform's user data directory unless that says
-otherwise. Nothing is sent anywhere: see `texastoast.scores`.
+otherwise. Nothing is sent anywhere: see `magmacrunch.engine.scores`.
 
 ## What is here
 

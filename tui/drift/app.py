@@ -5,7 +5,7 @@ lives in :mod:`drift.player`, :mod:`drift.obstacles` and
 :mod:`drift.projection`. This holds them together.
 
 **The terminal is not owned here.** It belongs to a
-:class:`~texastoast.core.tui_host.TuiHost`, which this is handed — the same
+:class:`~magmacrunch.engine.core.tui_host.TuiHost`, which this is handed — the same
 arrangement the other two terminal games use. That is what lets the game run as
 its own command *and* be seated by a launcher without knowing which happened.
 

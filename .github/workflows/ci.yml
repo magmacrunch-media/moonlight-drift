@@ -75,7 +75,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      # texastoast[tui]>=0.10.0 comes from pyproject.toml and is on PyPI, so
+      # magmacrunch comes from pyproject.toml and is on PyPI, so
       # there is nothing to install by hand.
       - name: Install the game
         working-directory: tui

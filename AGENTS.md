@@ -8,7 +8,7 @@ One game, two versions, one repo:
   Never edit the website repo's copy directly — it gets overwritten.
 - `wii/` — Wii port (magnolia engine, C99). Has its own `AGENTS.md` with build
   and porting detail. Expects magnolia checked out beside this repo.
-- `tui/` — terminal version (texastoast engine, Python + its `[tui]` backend).
+- `tui/` — terminal version (the `magmacrunch.engine` TUI engine, Python).
   Has its own `README.md`. `moonlight-drift`, or seated by the magmacrunch arcade.
 
 A gameplay change is not done until all three versions have it (or the commit

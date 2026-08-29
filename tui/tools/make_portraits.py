@@ -3,7 +3,7 @@
 Run at development time, never at runtime. It writes ``drift/portraits.py``,
 which is committed — the game keeps its zero runtime dependencies and there is
 no image decoding when somebody plays. Same arrangement as the block face in
-``texastoast.ui.bigtext``: the drawing is data, and the tool that made it is
+``magmacrunch.engine.ui.bigtext``: the drawing is data, and the tool that made it is
 not shipped.
 
     pip install pillow

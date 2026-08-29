@@ -35,7 +35,7 @@ moonlight-drift = "drift.__main__:main"
 
 # Found by a launcher enumerating installed games. Declaring it costs nothing
 # when the game is run on its own, and is the whole of what makes it appear in
-# an arcade menu - see texastoast.arcade.
+# an arcade menu - see magmacrunch.engine.arcade.
 [project.entry-points."magmacrunch.games"]
 moonlight-drift = "drift.arcade:GAME"
 

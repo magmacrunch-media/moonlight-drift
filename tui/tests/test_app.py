@@ -14,7 +14,7 @@ import asyncio
 
 import pytest
 
-pytest.importorskip("textual", reason='needs: pip install -e ".[dev]" with texastoast[tui]')
+pytest.importorskip("textual", reason='needs: pip install -e ".[dev]"')
 
 from magmacrunch.engine import scores as score_mod  # noqa: E402
 from magmacrunch.engine.arcade import ArcadeGame  # noqa: E402
@@ -493,7 +493,7 @@ def test_the_simulation_needs_no_engine():
 
     code = ("import sys, drift.config, drift.projection, drift.player, "
             "drift.obstacles, drift.characters, drift.stars; "
-            "print([m for m in sys.modules if m.startswith('texastoast') "
+            "print([m for m in sys.modules if m.startswith('magmacrunch') "
             "or m == 'textual'])")
     out = subprocess.run([sys.executable, "-c", code], capture_output=True,
                          text=True, check=True)

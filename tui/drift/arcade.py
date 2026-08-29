@@ -38,7 +38,7 @@ INFO = GameInfo(
 
 
 class DriftGame:
-    """Satisfies :class:`texastoast.arcade.ArcadeGame`."""
+    """Satisfies :class:`magmacrunch.engine.arcade.ArcadeGame`."""
 
     info = INFO
 

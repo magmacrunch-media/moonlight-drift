@@ -800,7 +800,7 @@ def _draw_title(renderer, cx: int, box_top: int) -> int:
     """The name, set as large as the window allows. Returns the row below it.
 
     Every rung shows the whole name; what changes is how much of it is drawn in
-    block letters rather than typed. See :mod:`texastoast.ui.bigtext`.
+    block letters rather than typed. See :mod:`magmacrunch.engine.ui.bigtext`.
     """
     budget = box_top - 1
     for big, rest in theme.TITLE_LADDER:
@@ -821,7 +821,7 @@ def _draw_title(renderer, cx: int, box_top: int) -> int:
 
 def _menu_theme():
     """The engine's Theme, recoloured. ``dataclasses.replace`` because
-    :class:`~texastoast.ui.theme.Theme` is frozen."""
+    :class:`~magmacrunch.engine.ui.theme.Theme` is frozen."""
     return replace(
         DEFAULT_THEME,
         primary=theme.MENU_SELECTED,
