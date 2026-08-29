@@ -692,10 +692,16 @@ class GameScene:
         r.present()
 
     def _draw_stars(self, r, p) -> None:
+        """The sky, dimmed. Stars are scenery and were outshouting the ship.
+
+        Dimmed here rather than in the palette, which is the browser's own
+        SNES_STAR_COLORS and should keep saying what the browser says. See
+        theme.STAR_DIM for why the same star is so much louder in a terminal.
+        """
         for star in self.sky.lit:
             x, y = p.col(star.x), p.row(star.y)
             if 0 <= x < r.width and theme.HEADER_ROWS <= y < r.height - theme.FOOTER_ROWS:
-                r.ui_text(x, y, star.glyph, fill=star.color)
+                r.ui_text(x, y, star.glyph, fill=theme.dim(star.color))
 
     def _draw_columns(self, r, p) -> None:
         """One cell-column at a time, asking the silhouette where the ink is.
@@ -743,12 +749,23 @@ class GameScene:
                     r.ui_text(col, row, label, fill=palette.accent)
 
     def _draw_player(self, r, p) -> None:
+        """The ship, as a solid object rather than three loose glyphs.
+
+        Filled first and the glyph punched out of it. Without the backing the
+        ship is three characters that happen to be adjacent, competing against
+        sixty stars drawn in the same weight — findable if you know where it
+        is, which is not the same as findable.
+        """
         glyph = self.app.character.glyph
         col = p.col(self.player.x)
         row = p.row(self.player.y)
         row = min(max(row, theme.HEADER_ROWS), r.height - theme.FOOTER_ROWS - 1)
-        colour = theme.DEAD if self.dead else self.app.character.accent
-        r.ui_text(col, row, glyph, fill=colour)
+        colour = theme.DEAD if self.dead else self.app.character.flight_colour
+
+        width = min(len(glyph), max(1, r.width - col))
+        if col < r.width:
+            r.ui_rect(col, row, width, 1, fill=colour)
+            r.ui_text(col, row, glyph[:width], fill=theme.FIELD_BG)
 
         # The plume, when climbing. Below the body, and not solid — collision
         # excludes it, so drawing it as part of the ship would be a lie.

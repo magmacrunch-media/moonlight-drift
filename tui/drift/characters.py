@@ -54,6 +54,21 @@ class Character:
         return portraits.ACCENTS.get(self.key, "#c8c8c8")
 
     @property
+    def flight_colour(self) -> str:
+        """The accent, lifted until it is legible against the playfield.
+
+        Separate from :attr:`accent` on purpose. The roster shows the accent
+        beside the pilot's own portrait, where it should match the sprite —
+        that is the whole reason it is derived from one. Flight has a different
+        job: the ship is a few cells among sixty stars and has to win, so it
+        gets a colour guaranteed to clear a contrast floor. Roderick Tron's
+        true blue sits at 2.8:1 and would be genuinely hard to follow.
+        """
+        from drift import theme
+
+        return theme.readable(self.accent)
+
+    @property
     def portrait(self) -> tuple:
         """The roster picture, or empty if the sprite is missing.
 

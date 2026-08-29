@@ -963,3 +963,104 @@ def test_a_narrow_window_drops_the_portrait_rather_than_the_names():
             app.host.quit()
 
     run(go())
+
+# ── Being able to see your ship ─────────────────────────────────────
+
+
+def test_every_ship_out_contrasts_every_star():
+    """The whole fix, as one assertion.
+
+    Before this the sky was louder than the ship: a white star sat at 18.3:1
+    against the playfield and Roderick Tron at 2.8:1 — sixty bright marks and
+    one dim one, the dim one being the thing you steer. Pinning the *hierarchy*
+    rather than particular hex values means the palettes can move without this
+    quietly stopping being true.
+    """
+    from drift import stars
+
+    brightest_star = max(theme.contrast(theme.dim(c), theme.FIELD_BG)
+                         for c in stars.PALETTE)
+    dimmest_ship = min(theme.contrast(p.flight_colour, theme.FIELD_BG)
+                       for p in characters.ROSTER)
+    assert dimmest_ship > brightest_star, (
+        f"the sky wins: ship {dimmest_ship:.1f}:1 vs star {brightest_star:.1f}:1")
+
+
+def test_every_pilot_clears_the_contrast_floor_in_flight():
+    for pilot in characters.ROSTER:
+        ratio = theme.contrast(pilot.flight_colour, theme.FIELD_BG)
+        assert ratio >= theme.SHIP_CONTRAST - 0.05, f"{pilot.name}: {ratio:.1f}:1"
+
+
+def test_lifting_is_measured_not_guessed_at_lightness():
+    """Lightness is not luminance. Blue contributes 0.0722 where green gives
+    0.7152, so a blue at a respectable HSL lightness is still dark — which is
+    exactly how Roderick Tron ended up at 2.8:1."""
+    tron = characters.get("roderick-tron")
+    assert theme.contrast(tron.accent, theme.FIELD_BG) < 3.0, "the premise moved"
+    assert theme.contrast(tron.flight_colour, theme.FIELD_BG) >= 7.0
+
+
+def test_the_roster_still_shows_the_sprites_own_colour():
+    """Only flight gets the lifted value. The roster sits beside the pilot's
+    own portrait, where the colour should match the sprite it came from."""
+    from drift import portraits
+
+    for pilot in characters.ROSTER:
+        assert pilot.accent == portraits.ACCENTS[pilot.key]
+
+
+def test_a_pilot_bright_enough_already_is_left_alone():
+    """Lifting is a floor, not a wash. Most pilots should come through
+    untouched or nearly so."""
+    unchanged = [p for p in characters.ROSTER if p.flight_colour == p.accent]
+    assert len(unchanged) >= len(characters.ROSTER) // 2, (
+        f"only {len(unchanged)} of {len(characters.ROSTER)} kept their colour")
+
+
+def test_the_ship_is_drawn_as_a_solid_object():
+    """Filled, with the glyph punched out. Without the backing it is three
+    characters that happen to be adjacent, in the same weight as the stars."""
+    app = hosted()
+    app.set_character(characters.get("roderick-tron"))
+
+    async def go():
+        async with await _piloted(app, size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.start_run()
+            settle(app)
+            await asyncio.sleep(0.35)
+            scene = app.host.scene
+            buf = app.host.game.surface.buffer
+            col = scene.projection.col(scene.player.x)
+            row = scene.projection.row(scene.player.y)
+            cell = buf.get(col, row)
+            assert cell.bg == app.character.flight_colour, "no backing"
+            assert cell.fg == theme.FIELD_BG, "glyph not punched out"
+            app.host.quit()
+
+    run(go())
+
+
+def test_the_stars_are_dimmed_on_the_way_to_the_screen():
+    """The palette itself is the browser's and stays as it is; only what
+    reaches the terminal is dimmed."""
+    from drift import stars
+
+    app = hosted()
+
+    async def go():
+        async with await _piloted(app, size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.start_run()
+            settle(app)
+            await asyncio.sleep(0.35)
+            buf = app.host.game.surface.buffer
+            drawn = {buf.get(x, y).fg
+                     for y in range(1, 22) for x in range(buf.width)
+                     if buf.get(x, y).char in stars.GLYPHS and buf.get(x, y).fg}
+            assert drawn, "no stars drawn"
+            assert "#ffffff" not in drawn, "a star is still at full brightness"
+            app.host.quit()
+
+    run(go())

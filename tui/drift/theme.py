@@ -16,6 +16,8 @@ purpose, because the moment they share one they get mixed.
 
 from __future__ import annotations
 
+import colorsys
+
 # ── Palette ─────────────────────────────────────────────────────────
 
 #: The darkest stop of the page gradient.
@@ -82,10 +84,81 @@ COLUMN = "█"
 COLUMN_EDGE = "▓"
 GROUND = "─"
 
+# ── Contrast ────────────────────────────────────────────────────────
+#
+# The starfield used to be louder than the ship. A white star sat at 18.3:1
+# against the playfield and the dimmest pilot at 2.8:1 — sixty bright marks and
+# one dim one, with the dim one being the thing you steer. These put the
+# hierarchy the right way up and let a test assert it rather than leaving it to
+# taste.
+
+#: How much of its stated colour a star keeps. Stars are scenery.
+#:
+#: The palette itself is left alone: it is ported from the browser's
+#: SNES_STAR_COLORS and should keep saying what the browser says. What differs
+#: is the medium. On the web a star is a few pixels of a 1280x720 canvas; in a
+#: terminal it is a whole cell out of about 1,700, so the same star is two
+#: orders of magnitude more prominent. Dimming corrects for that rather than
+#: redesigning the sky. At 0.45 a white star lands near 3.8:1 — still plainly
+#: a star, no longer shouting.
+STAR_DIM = 0.45
+
+#: The floor a ship must clear against :data:`FIELD_BG`. Roughly twice the
+#: brightest dimmed star, so the ship wins the screen wherever it is.
+SHIP_CONTRAST = 7.0
+
+
+def _channel(value: float) -> float:
+    return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+
+
+def luminance(colour: str) -> float:
+    """Relative luminance of ``#rrggbb``, per WCAG."""
+    r, g, b = (int(colour[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    return (0.2126 * _channel(r) + 0.7152 * _channel(g) + 0.0722 * _channel(b))
+
+
+def contrast(a: str, b: str) -> float:
+    """Contrast ratio between two colours, 1.0 to 21.0."""
+    lo, hi = sorted((luminance(a), luminance(b)))
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def dim(colour: str, factor: float = STAR_DIM) -> str:
+    """``colour`` scaled towards black."""
+    r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+    return f"#{int(r * factor):02x}{int(g * factor):02x}{int(b * factor):02x}"
+
+
+def readable(colour: str, against: str = FIELD_BG,
+             target: float = SHIP_CONTRAST) -> str:
+    """``colour`` lightened until it clears ``target`` contrast.
+
+    Lightness is not luminance, which is the trap the sprite-derived accents
+    fell into: blue contributes 0.0722 to luminance against green's 0.7152, so
+    a blue raised to a perfectly respectable HSL lightness is still dark.
+    Roderick Tron's #4d4dcb is "light" and sits at 2.8:1. Lifting against the
+    measurement instead of against lightness is what makes every pilot legible
+    rather than most of them.
+    """
+    r, g, b = (int(colour[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    hue, light, sat = colorsys.rgb_to_hls(r, g, b)
+    best = colour
+    for step in range(61):
+        lifted = min(0.95, light + step * 0.01)
+        rr, gg, bb = colorsys.hls_to_rgb(hue, lifted, sat)
+        best = f"#{round(rr * 255):02x}{round(gg * 255):02x}{round(bb * 255):02x}"
+        if contrast(best, against) >= target:
+            break
+    return best
+
+
 __all__ = [
     "BANNER", "BG", "COLUMN", "COLUMN_EDGE", "DEAD", "DIM", "FIELD_BG",
     "FLAME", "FOOTER_ROWS", "GROUND", "HEADER_ROWS", "LABEL", "MENU_BORDER",
     "MENU_BOX", "MENU_ITEM_H", "MENU_MIN_COLS", "MENU_MIN_ROWS", "MENU_PAD",
-    "MENU_SELECTED", "MENU_SELECTION_BG", "MENU_TITLE_H", "MENU_W", "MIN_COLS",
-    "MIN_ROWS", "SUBTITLE", "TAGLINE", "TITLE", "TITLE_LADDER", "VALUE", "WARN",
+    "MENU_SELECTED", "MENU_SELECTION_BG", "MENU_TITLE_H", "MENU_W",
+    "MIN_COLS", "MIN_ROWS", "SHIP_CONTRAST", "STAR_DIM", "SUBTITLE",
+    "TAGLINE", "TITLE", "TITLE_LADDER", "VALUE", "WARN", "contrast", "dim",
+    "luminance", "readable",
 ]

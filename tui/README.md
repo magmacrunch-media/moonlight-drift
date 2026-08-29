@@ -53,6 +53,24 @@ moonlight-drift --list-characters       the roster, without opening the game
 moonlight-drift --character fire-toad   fly as someone in particular
 ```
 
+## Seeing your ship
+
+The sky used to be louder than the ship. A white star sat at 18.3:1 contrast
+against the playfield and the dimmest pilot at 2.8:1 — sixty bright marks and
+one dim one, the dim one being the thing you steer.
+
+Stars are dimmed on the way to the screen (the palette itself is the browser's
+`SNES_STAR_COLORS` and is left alone), the ship is drawn as a filled block with
+its glyph punched out of it, and each pilot's flight colour is lifted until it
+clears a contrast floor. Ships now sit at 7:1 or better against a brightest
+star of 3.8:1, and a test asserts the *hierarchy* rather than any particular
+pair of colours.
+
+Lifting is measured, not guessed at lightness: blue contributes 0.0722 to
+luminance where green gives 0.7152, so Roderick Tron's perfectly respectable
+"light" blue was still dark. Only flight is lifted — the roster keeps each
+sprite's true colour beside its portrait.
+
 ## Portraits
 
 The roster shows each pilot's actual sprite, generated from the 48 PNGs the Wii
