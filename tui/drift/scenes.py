@@ -35,9 +35,9 @@ import textwrap
 from dataclasses import replace
 
 from magmacrunch.engine import scores
-from magmacrunch.engine.ui.theme import DEFAULT_THEME
-from magmacrunch.engine.ui.menu import Menu
 from magmacrunch.engine.ui import bigtext
+from magmacrunch.engine.ui.menu import Menu
+from magmacrunch.engine.ui.theme import DEFAULT_THEME
 
 from drift import characters, config, obstacles, projection, stars, theme
 from drift.player import new_player
