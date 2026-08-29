@@ -34,8 +34,10 @@ from __future__ import annotations
 import textwrap
 from dataclasses import replace
 
-from texastoast import scores
-from texastoast.ui import DEFAULT_THEME, Menu, bigtext
+from magmacrunch.engine import scores
+from magmacrunch.engine.ui.theme import DEFAULT_THEME
+from magmacrunch.engine.ui.menu import Menu
+from magmacrunch.engine.ui import bigtext
 
 from drift import characters, config, obstacles, projection, stars, theme
 from drift.player import new_player

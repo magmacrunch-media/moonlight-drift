@@ -18,7 +18,7 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from texastoast.scores import ScoreBook
+from magmacrunch.engine.scores import ScoreBook
 
 from drift import characters
 from drift.scenes import GameScene, TitleScene
@@ -150,7 +150,7 @@ class DriftApp:
 def run(character: str | None = None, seed: int | None = None,
         skip_title: bool = False) -> None:
     """Play Moonlight Drift as its own command."""
-    from texastoast.core.tui_host import TuiHost
+    from magmacrunch.engine.core.tui_host import TuiHost
 
     from drift.arcade import GAME
 

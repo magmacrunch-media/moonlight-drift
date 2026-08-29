@@ -16,9 +16,9 @@ import pytest
 
 pytest.importorskip("textual", reason='needs: pip install -e ".[dev]" with texastoast[tui]')
 
-from texastoast import scores as score_mod  # noqa: E402
-from texastoast.arcade import ArcadeGame  # noqa: E402
-from texastoast.core.tui_host import TuiHost  # noqa: E402
+from magmacrunch.engine import scores as score_mod  # noqa: E402
+from magmacrunch.engine.arcade import ArcadeGame  # noqa: E402
+from magmacrunch.engine.core.tui_host import TuiHost  # noqa: E402
 
 from drift import characters, config, scenes, theme  # noqa: E402
 from drift.app import DriftApp  # noqa: E402
@@ -78,7 +78,7 @@ def flying(seed: int = 3) -> tuple[DriftApp, GameScene]:
 
 
 async def _piloted(app: DriftApp, size=(80, 24)):
-    from texastoast.core.tui_game import _GameApp
+    from magmacrunch.engine.core.tui_game import _GameApp
 
     textual_app = _GameApp(app.host.game, app.host.game.surface)
     app.host.game._app = textual_app
@@ -705,7 +705,7 @@ def test_the_board_is_filed_under_the_key_the_browser_uses():
 def test_a_score_survives_the_session(tmp_path):
     """The whole point of the file. A fresh app on the same directory sees
     what the last one recorded."""
-    from texastoast.scores import ScoreBook
+    from magmacrunch.engine.scores import ScoreBook
 
     book = ScoreBook("moonlight-drift", directory=tmp_path)
     first = DriftApp(TuiHost(title="t"), scores=book)
