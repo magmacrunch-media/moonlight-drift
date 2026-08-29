@@ -43,6 +43,15 @@ from drift import characters, config, obstacles, projection, stars, theme
 from drift.player import new_player
 
 MENU_HELP = "↑↓ choose    Enter select    Q quit"
+
+#: Shown under the key hints, and only when a launcher seated this game.
+#:
+#: Esc at this screen calls the same "take me back" as ever — what changes is
+#: where back is. Seated, it is the arcade floor; launched on its own, it ends
+#: the session, which Q already says. So the key needs describing in exactly
+#: one of the two situations, and until this line existed a player under the
+#: arcade had no way to discover the route back at all.
+ARCADE_HELP = "Esc  back to the arcade"
 GAME_HELP = "SPACE/↑ thrust    R restart    Esc title    Q quit"
 PILOT_HELP = "↑↓ choose    Enter fly    Esc back"
 RULES_HELP = "↑↓ scroll    any other key goes back"
@@ -207,6 +216,9 @@ class TitleScene:
                       fill=theme.LABEL, anchor="n")
         r.ui_text(cx, r.height - 2, _fit(MENU_HELP, r.width - 2),
                   fill=theme.DIM, anchor="n")
+        if self.app.host.seated:
+            r.ui_text(cx, r.height - 1, _fit(ARCADE_HELP, r.width - 2),
+                      fill=theme.DIM, anchor="n")
         r.present()
 
     def _menu_box_top(self, renderer) -> int:

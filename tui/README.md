@@ -45,6 +45,11 @@ terminal has to explain that a browser does not — a keyboard reports presses
 and never releases, so thrust is inferred from auto-repeat and lets go about a
 tenth of a second after you do.
 
+`Esc` here goes back to the arcade when the arcade started this, and the screen
+says so — but only then. Launched as its own command there is nothing behind it
+and the same key ends the session, which `Q` already covers, so the line would
+be a lie half the time if it were printed unconditionally.
+
 Both scroll: 24 pilots and the rules are each longer than a standard terminal
 is tall.
 

@@ -1064,3 +1064,52 @@ def test_the_stars_are_dimmed_on_the_way_to_the_screen():
             app.host.quit()
 
     run(go())
+
+
+# ── Seated under a launcher ─────────────────────────────────────────
+
+
+class _Floor:
+    """Stands in for whatever a launcher has underneath a cabinet."""
+
+    def update(self, dt):
+        pass
+
+    def render(self):
+        pass
+
+
+def seated():
+    """The cabinet seated over a floor, the way the arcade does it."""
+    host = TuiHost(title=GAME.info.title, fps=GAME.info.fps,
+                   hold_ms=GAME.info.hold_ms)
+    host.push_scene(_Floor())
+    host.stack.update(0.0)
+    scene = host.seat(GAME)
+    host.stack.update(0.0)
+    return host, scene
+
+
+def screen(host) -> str:
+    return host.game.surface.buffer.to_text()
+
+
+def test_a_seated_cabinet_says_how_to_get_back():
+    host, scene = seated()
+    scene.render()
+    assert scenes.ARCADE_HELP in screen(host)
+
+
+def test_a_game_launched_on_its_own_does_not_promise_an_arcade():
+    # The same screen, the same key, a different truth: Esc ends the session
+    # here, and Q already says so.
+    app = hosted()
+    app.host.scene.render()
+    assert scenes.ARCADE_HELP not in buffer_text(app)
+
+
+def test_esc_from_a_seated_cabinet_returns_instead_of_quitting():
+    host, scene = seated()
+    scene.handle_key("escape")
+    host.stack.update(0.0)
+    assert isinstance(host.scene, _Floor), "should be back on the floor"
