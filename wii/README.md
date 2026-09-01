@@ -1,7 +1,7 @@
 # Moonlight Drift — Nintendo Wii Port
 
 **Project:** Port [Moonlight Drift](https://magmacrunch.com/arcade/moonlight-drift/) (Jetman-style arcade game) to a homebrewed Nintendo Wii
-**Engine:** [magnolia](https://github.com/magmacrunchmedia/magnolia) `>= v0.3.0` — shared Wii game engine
+**Engine:** [magnolia](https://github.com/magmacrunch-media/magnolia) `>= v0.3.0` — shared Wii game engine
 **Status:** Phases 1–8 complete — 24 characters, selector grid, audio, TV-safe UI,
 persistence, and a world-space playfield that matches the arcade version's geometry
 
@@ -19,7 +19,7 @@ persistence, and a world-space playfield that matches the arcade version's geome
 |-----------|-----------|
 | Language | C (C99) |
 | Compiler | devkitPPC (PowerPC cross-compiler) |
-| Engine | [magnolia](https://github.com/magmacrunchmedia/magnolia) |
+| Engine | [magnolia](https://github.com/magmacrunch-media/magnolia) |
 | Graphics | GRRLIB (2D rendering via GX) |
 | Font | Press Start 2P (embedded TTF) |
 | Storage | SD card (FatFS via libfat-ogc) |
@@ -61,7 +61,7 @@ moonlight-drift/wii/
     └── gangsta-beaver-thrust.png
 ```
 
-**Engine code** (core bring-up, rendering, sprites, input, audio, scoring, game state, theme, UI utils, font) lives in [magnolia](https://github.com/magmacrunchmedia/magnolia) and is compiled via `../magnolia` in the Makefile.
+**Engine code** (core bring-up, rendering, sprites, input, audio, scoring, game state, theme, UI utils, font) lives in [magnolia](https://github.com/magmacrunch-media/magnolia) and is compiled via `../magnolia` in the Makefile.
 
 Player physics, the starfield and the character roster are **not** in the engine —
 they encode this game's decisions, so they live here. See magnolia's README for
@@ -404,7 +404,7 @@ Three visual styles with matching tapered collision:
 
 | Resource | URL |
 |----------|-----|
-| magnolia engine | https://github.com/magmacrunchmedia/magnolia |
+| magnolia engine | https://github.com/magmacrunch-media/magnolia |
 | Web version | https://magmacrunch.com/arcade/moonlight-drift/ |
 | devkitPro | https://devkitpro.org |
 | GRRLIB | https://github.com/GRRLIB/GRRLIB |

@@ -30,7 +30,7 @@ a second before it starts repeating. Reading held state through that silence
 gives a boost that cuts out exactly when you press it. So each press is a hop
 whose arc outlasts the repeat delay: holding reads as a continuous climb, and a
 single tap is a crisp one. See `drift/config.py`. It is also a
-cabinet in the [magmacrunch](https://github.com/magmacrunchmedia/magmacrunch)
+cabinet in the [magmacrunch](https://github.com/magmacrunch-media/magmacrunch)
 arcade, and plays identically either way.
 
 ## On the title screen
