@@ -32,7 +32,7 @@ jobs:
       - name: Check out the engine beside it
         uses: actions/checkout@v4
         with:
-          repository: magmacrunchmedia/magnolia
+          repository: magmacrunch-media/magnolia
           path: magnolia
 
       # obstacles, player, characters and stars: every module in source/ that
