@@ -148,14 +148,19 @@ class DriftApp:
 
 
 def run(character: str | None = None, seed: int | None = None,
-        skip_title: bool = False) -> None:
+        skip_title: bool = False, ascii_only: bool = False) -> None:
     """Play Moonlight Drift as its own command."""
     from magmacrunch.engine.core.tui_host import TuiHost
+    from magmacrunch.engine.ui.glyphs import Glyphs
 
     from drift.arcade import GAME
 
+    # The renderer substitutes what this terminal cannot encode -- the
+    # columns, the stars, the arrows in the hint line -- on the way into
+    # the cell buffer, so nothing in `scenes` asks the question.
     host = TuiHost(title=GAME.info.title, fps=GAME.info.fps,
-                   hold_ms=GAME.info.hold_ms)
+                   hold_ms=GAME.info.hold_ms,
+                   glyphs=Glyphs.detect(ascii_only=ascii_only))
     app = DriftApp(host, character, seed)
     host.push_scene(app.root_scene)
     if skip_title:

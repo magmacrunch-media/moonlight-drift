@@ -26,6 +26,14 @@ def main() -> None:
         "--play", action="store_true",
         help="skip the title screen and start drifting",
     )
+    parser.add_argument(
+        "--ascii", action="store_true", dest="ascii_only",
+        help="draw with plain ASCII instead of block, arrow and suit "
+             "glyphs. Detected automatically from the terminal's "
+             "encoding; this forces it, for a font that lacks the "
+             "pictures. MAGMACRUNCH_ASCII=1 says the same for every "
+             "cabinet at once.",
+    )
     args = parser.parse_args()
 
     if args.list_characters:
@@ -41,7 +49,7 @@ def main() -> None:
     # or its terminal extra installed.
     from drift.app import run
 
-    run(args.character, args.seed, args.play)
+    run(args.character, args.seed, args.play, args.ascii_only)
 
 
 if __name__ == "__main__":

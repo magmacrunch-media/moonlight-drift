@@ -331,6 +331,99 @@ def test_a_dead_run_stops_simulating():
     assert scene.frame == frozen
 
 
+# ── Pause ─────────────────────────────────────────────────────────────
+
+
+def test_p_stops_the_clock():
+    app, scene = flying()
+    for _ in range(5):
+        app.host.stack.update(1 / 30)
+    scene.handle_key("p")
+    frozen = scene.frame
+    for _ in range(10):
+        app.host.stack.update(1 / 30)
+    assert scene.paused
+    assert scene.frame == frozen
+
+
+def test_p_again_starts_it():
+    app, scene = flying()
+    scene.handle_key("p")
+    scene.handle_key("p")
+    frozen = scene.frame
+    for _ in range(10):
+        app.host.stack.update(1 / 30)
+    assert not scene.paused
+    assert scene.frame > frozen
+
+
+def test_a_pause_does_not_bank_thrust():
+    """The one way a pause can change a run rather than suspend it.
+
+    Thrust is an impulse that sets ``velocity`` outright, so a flap taken
+    while the world is stopped would sit on the player untouched by gravity
+    and spend itself the moment play resumed — a free climb bought by
+    pausing. It has to be inert instead, not queued.
+    """
+    app, scene = flying()
+    for _ in range(5):
+        app.host.stack.update(1 / 30)
+    scene.handle_key("p")
+    before = scene.player.velocity
+    for _ in range(5):
+        tap(app)
+    assert scene.player.velocity == before, "a paused flap should do nothing"
+
+
+def test_a_pause_swallows_the_thrust_key_rather_than_passing_it_on():
+    """Inert is not the same as unhandled: the key must not fall through to
+    whatever would otherwise act on it."""
+    app, scene = flying()
+    scene.handle_key("p")
+    assert scene.handle_key("space") is True
+
+
+def test_pausing_still_reprojects_so_a_resize_survives_it():
+    """``update`` returns early while paused, and the projection is computed
+    before that return for exactly this case."""
+    app, scene = flying()
+
+    async def go():
+        async with await _piloted(app, size=(60, 24)) as pilot:
+            await pilot.pause()
+            await asyncio.sleep(0.25)
+            scene.handle_key("p")
+            narrow = scene.projection.world_w
+            await pilot.resize_terminal(120, 40)
+            await asyncio.sleep(0.3)
+            assert scene.paused, "the resize should not have resumed the run"
+            assert scene.projection.world_w > narrow
+            app.host.quit()
+
+    run(go())
+
+
+def test_a_crashed_run_cannot_be_paused():
+    app, scene = flying()
+    scene._die()
+    scene.handle_key("p")
+    assert not scene.paused
+
+
+def test_restarting_clears_the_pause():
+    app, scene = flying()
+    scene.handle_key("p")
+    scene.restart()
+    assert not scene.paused
+
+
+def test_the_game_help_fits_the_smallest_terminal():
+    """``_fit`` truncates from the right and says nothing about it, so a hint
+    line that outgrows the floor loses its last key silently — which was
+    ``Q quit``, the one a stuck player most needs."""
+    assert len(scenes.GAME_HELP) <= theme.MIN_COLS - 2
+
+
 def test_the_same_seed_flies_the_same_run():
     """Seeded, so a collision report is reproducible rather than a story about
     one time it happened."""
@@ -431,6 +524,24 @@ def test_the_death_banner_appears_and_says_the_score():
             text = buffer_text(app)
             assert "DRIFTED OFF" in text
             assert "score 4" in text
+            app.host.quit()
+
+    run(go())
+
+
+def test_the_pause_banner_appears_and_says_the_score():
+    app, scene = flying()
+
+    async def go():
+        async with await _piloted(app) as pilot:
+            await pilot.pause()
+            scene.score = 6
+            scene.handle_key("p")
+            await asyncio.sleep(0.25)
+            text = buffer_text(app)
+            assert "PAUSED" in text
+            assert "score 6" in text
+            assert "DRIFTED OFF" not in text, "a stopped run is not a dead one"
             app.host.quit()
 
     run(go())

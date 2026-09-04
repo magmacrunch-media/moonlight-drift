@@ -52,7 +52,13 @@ MENU_HELP = "↑↓ choose    Enter select    Q quit"
 #: one of the two situations, and until this line existed a player under the
 #: arcade had no way to discover the route back at all.
 ARCADE_HELP = "Esc  back to the arcade"
-GAME_HELP = "SPACE/↑ thrust    R restart    Esc title    Q quit"
+#: Three spaces between hints where every other line here uses four. With
+#: "P pause" added, four puts this at 61 cells and `_fit` would quietly eat
+#: "Q quit" on a MIN_COLS terminal; three fits the floor at 57. The hint that
+#: goes missing when a line overflows is always the last one, which is why
+#: this is worth a comment rather than a shrug.
+GAME_HELP = "SPACE/↑ thrust   P pause   R restart   Esc title   Q quit"
+PAUSE_HELP = "P to fly on    Esc for the title"
 PILOT_HELP = "↑↓ choose    Enter fly    Esc back"
 RULES_HELP = "↑↓ scroll    any other key goes back"
 INITIALS_HELP = "Enter confirms    Backspace fixes"
@@ -575,6 +581,7 @@ class GameScene:
         self.score = 0
         self.frame = 0
         self.dead = False
+        self.paused = False
         self.projection = projection.compute(1, 1)
         self.restart()
 
@@ -595,6 +602,7 @@ class GameScene:
         self.score = 0
         self.frame = 0
         self.dead = False
+        self.paused = False
         # The last run's placing is not this run's. Cleared here rather than in
         # __init__ so that R clears it too.
         self.app.last_rank = None
@@ -623,8 +631,23 @@ class GameScene:
         accelerating without limit, and a rapid tapper cannot stack flaps into
         something the physics never intended.
         """
-        if not self.dead:
+        if not self.dead and not self.paused:
             self.player.velocity = self.player.thrust * config.FLAP
+
+    def _toggle_pause(self) -> None:
+        """Stop the clock, or start it again.
+
+        Only the simulation stops. ``render`` keeps running and ``_reproject``
+        with it, so a window resized while paused comes back to a world laid
+        out for the size it is now rather than the size it was.
+
+        Nothing is banked while it is stopped: thrust is inert (see
+        :meth:`_flap`) and ``poll()`` is not called, so the input source's
+        edge set is left for the first frame after the resume to drain. That
+        is the same reasoning as :meth:`restart` clearing it — a press made
+        while the world was not moving must not be spent once it is.
+        """
+        self.paused = not self.paused
 
     def _die(self) -> None:
         self.dead = True
@@ -638,8 +661,10 @@ class GameScene:
     # -- Frame -------------------------------------------------------
 
     def update(self, dt: float) -> None:
+        # Ahead of both early returns: a crashed or paused run still has to
+        # survive a resize, and the projection is what a resize invalidates.
         self._reproject()
-        if self.dead:
+        if self.dead or self.paused:
             return
 
         self.frame += 1
@@ -673,6 +698,8 @@ class GameScene:
             self.app.host.quit()
         elif key == "escape":
             self.app.to_title()
+        elif key == "p" and not self.dead:
+            self._toggle_pause()
         elif self.dead and key in ("enter", "space"):
             self.restart()
         elif key in THRUST_KEYS:
@@ -703,6 +730,8 @@ class GameScene:
         self._draw_hud(r)
         if self.dead:
             self._draw_death(r)
+        elif self.paused:
+            self._draw_pause(r)
         r.present()
 
     def _draw_stars(self, r, p) -> None:
@@ -807,6 +836,20 @@ class GameScene:
             r.ui_text(cx, cy - 1 + i, _fit(line, r.width - 2),
                       fill=fill, anchor="n")
 
+    def _draw_pause(self, r) -> None:
+        """Laid out like the death banner, and coloured unlike it.
+
+        Same three rows in the same place, so the eye does not have to go
+        looking; WARN rather than DEAD on the first, because a run that is
+        stopped and a run that is over are the one thing a glance has to be
+        able to tell apart.
+        """
+        cx, cy = r.width // 2, r.height // 2
+        for i, line in enumerate(("PAUSED", f"score {self.score}", PAUSE_HELP)):
+            fill = theme.WARN if i == 0 else theme.VALUE if i == 1 else theme.DIM
+            r.ui_text(cx, cy - 1 + i, _fit(line, r.width - 2),
+                      fill=fill, anchor="n")
+
 
 def _draw_title(renderer, cx: int, box_top: int) -> int:
     """The name, set as large as the window allows. Returns the row below it.
@@ -846,4 +889,5 @@ def _menu_theme():
     )
 
 
-__all__ = ["GAME_HELP", "MENU_HELP", "THRUST_KEYS", "GameScene", "TitleScene"]
+__all__ = ["GAME_HELP", "MENU_HELP", "PAUSE_HELP", "THRUST_KEYS",
+           "GameScene", "TitleScene"]

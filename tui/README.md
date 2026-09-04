@@ -23,6 +23,8 @@ python -m drift
 ```
 
 Tap SPACE or ↑ to climb, hold to keep climbing, release to fall.
+`P` pauses; the clock stops and a flap taken while it is stopped does
+nothing, so pausing suspends a run rather than changing it.
 
 **Thrust is a press, not a held key** — a terminal cannot report that a key is
 still down, only that it was pressed, and a keyboard goes silent for about half
@@ -56,7 +58,45 @@ is tall.
 ```
 moonlight-drift --list-characters       the roster, without opening the game
 moonlight-drift --character fire-toad   fly as someone in particular
+moonlight-drift --ascii                 no block or arrow glyphs
 ```
+
+## In a run
+
+| key | |
+|---|---|
+| SPACE / ↑ / W | thrust |
+| `P` | pause |
+| `R` | restart |
+| `Esc` | back to the title |
+| `Q` | quit |
+
+Pause stops the simulation and nothing else: the screen keeps redrawing,
+so a window resized while paused comes back laid out for the size it is
+now. It is refused once you have crashed, there being no clock left to
+stop, and `R` clears it along with everything else.
+
+## When the terminal cannot draw the glyphs
+
+Not every console can encode what these games draw. Windows' two common
+codepages are the ones that bite: cp1252 has none of the block elements,
+arrows or suits, and cp437 has the blocks and none of the arrows, stars or
+suits. The engine asks the terminal what it can encode and substitutes what it
+cannot, one **group** at a time -- so a set of related glyphs never comes back
+half translated, and a terminal that can draw the blocks keeps them even
+though it has lost the arrows.
+
+Detection is automatic. Two ways to override it, for the case no probe can
+see -- an encoding that accepts the character in a font that has no picture
+for it:
+
+```
+moonlight-drift --ascii              this game, this run
+MAGMACRUNCH_ASCII=1      every cabinet, always
+```
+
+Every substitute is exactly one cell wide, so a plain screen has the same
+layout as a fancy one rather than a reflowed approximation of it.
 
 ## Seeing your ship
 
