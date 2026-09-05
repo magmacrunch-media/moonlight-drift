@@ -16,6 +16,30 @@ says why one is skipped). `web/js/` is the reference the Wii port's comments
 cite, and the terminal port was taken from `wii/source/` for the same reason
 George Boole's was — it is the same rules already separated from a renderer.
 
+## Cache-buster stamps in `web/index.html`
+
+Every `?v=` in `web/index.html` is the first eight hex of SHA-256 over the file
+it stamps, with newlines normalised to LF. Get one wrong and visitors keep
+serving the cached old bytes, so the change reaches nobody and the page still
+loads.
+
+`../shared/adenosine-audio.js` is the one to watch: it names a file that does
+not exist in this repo at all. It resolves only once `web/` has been copied
+into the website's `arcade/`, and it goes stale when *that* repo updates the
+shared bundle — which nothing here can notice.
+
+The website's `.githooks/pre-commit` recomputes stale stamps in its copy of
+this page, but that repair never travels back here, and
+`make sync-moonlight-drift` copies `web/` over `arcade/moonlight-drift/`
+verbatim. So a stamp corrected there is reverted by the next sync, silently,
+on a game nobody touched. **The fix belongs in this repo.** Recompute one from
+a website checkout, and check the whole site after any sync:
+
+```
+node scripts/check-cache-busters.mjs --digest arcade/shared/adenosine-audio.js
+npm run check:cachebust
+```
+
 ## Where the rules live in each version
 
 | | rules | rendering |
