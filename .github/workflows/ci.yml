@@ -25,12 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the game
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: moonlight-drift
 
       - name: Check out the engine beside it
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: magmacrunch-media/magnolia
           path: magnolia
@@ -50,8 +50,8 @@ jobs:
     name: tui simulation (no engine)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -70,8 +70,8 @@ jobs:
     name: tui screens
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
