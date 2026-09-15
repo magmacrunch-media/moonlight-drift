@@ -35,6 +35,12 @@ behaviour came from. Change `web/` first, then carry the change into
 This repo was formed from `moonlight-drift-wii` (whose history it keeps) plus
 the browser version imported from the website repo.
 
+
+## Support This Project
+
+If you find this useful, consider supporting its development:
+
+[![Sponsor](https://img.shields.io/badge/%E2%9D%A4_Sponsor-pink)](https://github.com/sponsors/magmacrunch-media)
 ## License
 
 [PolyForm Noncommercial License 1.0.0](LICENSE) — read it, learn from it, build
