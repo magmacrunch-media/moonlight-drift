@@ -117,7 +117,8 @@ local function loadBest(player: Player)
 	if store then
 		local s = store :: OrderedDataStore
 		local ok, value = pcall(function()
-			return s:GetAsync(tostring(player.UserId))
+			-- Only the value; GetAsync's second result is the key's metadata.
+			return (s:GetAsync(tostring(player.UserId)))
 		end)
 		if ok and typeof(value) == "number" then
 			best = value
@@ -186,7 +187,9 @@ SubmitRun.OnServerInvoke = function(player: Player, score: unknown): SubmitReply
 			local ok, err = pcall(function()
 				s:UpdateAsync(tostring(player.UserId), function(old: number?)
 					if old and old >= n then
-						return nil -- keep the stored best; a nil return cancels the write
+						-- Keep the stored best. Returning nil cancels the write, which
+						-- the type definitions do not model, hence the cast.
+						return nil :: any
 					end
 					return n
 				end)

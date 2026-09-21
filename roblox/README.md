@@ -60,6 +60,19 @@ Run the tests from this folder:
 lune run tests/run
 ```
 
+Type-check `src/` against Roblox's API with
+[luau-lsp](https://github.com/JohnnyMorganz/luau-lsp). This is the only check
+short of Studio that notices a misspelt property or enum. It needs a sourcemap
+and Roblox's type definitions (`scripts/globalTypes.d.luau` in that repo):
+
+```bash
+rojo sourcemap -o sourcemap.json
+luau-lsp analyze --platform=roblox --definitions=globalTypes.d.luau --sourcemap=sourcemap.json src
+```
+
+CI's `roblox` job runs all three on every push: the tests, `rojo build` and
+the type check.
+
 ## High scores
 
 Each run is simulated on the player's own client, so the server never sees the

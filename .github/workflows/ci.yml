@@ -124,3 +124,47 @@ jobs:
       - name: Full suite
         working-directory: tui
         run: python -m pytest -q
+
+  # The Roblox version. Three tools, all pinned to the versions in
+  # roblox/rokit.toml or beside it, fetched as release zips rather than through
+  # rokit so the job has nothing to bootstrap.
+  #
+  # - lune runs tests/run.luau, the rules with no Roblox on the machine.
+  # - rojo builds the place, which is what proves default.project.json maps
+  #   every file where the scripts expect to find it.
+  # - luau-lsp type-checks all of src/ against Roblox's API definitions, the
+  #   only check short of Studio that notices a misspelt property or enum.
+  roblox:
+    name: roblox
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: roblox
+    env:
+      LUNE: "0.8.9"
+      ROJO: "7.4.4"
+      LUAU_LSP: "1.70.0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch the tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          fetch() { curl -sSfL -o "$RUNNER_TEMP/$1.zip" "$2" && unzip -q -o "$RUNNER_TEMP/$1.zip" -d "$RUNNER_TEMP/bin"; }
+          fetch lune "https://github.com/lune-org/lune/releases/download/v$LUNE/lune-$LUNE-linux-x86_64.zip"
+          fetch rojo "https://github.com/rojo-rbx/rojo/releases/download/v$ROJO/rojo-$ROJO-linux-x86_64.zip"
+          fetch luau-lsp "https://github.com/JohnnyMorganz/luau-lsp/releases/download/$LUAU_LSP/luau-lsp-linux-x86_64.zip"
+          curl -sSfL -o "$RUNNER_TEMP/globalTypes.d.luau"             "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/$LUAU_LSP/scripts/globalTypes.d.luau"
+          chmod +x "$RUNNER_TEMP"/bin/*
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Rules
+        run: lune run tests/run
+
+      - name: Build the place
+        run: rojo build -o "$RUNNER_TEMP/moonlight-drift.rbxl"
+
+      - name: Type check
+        run: |
+          rojo sourcemap -o "$RUNNER_TEMP/sourcemap.json"
+          luau-lsp analyze --platform=roblox             --definitions="$RUNNER_TEMP/globalTypes.d.luau"             --sourcemap="$RUNNER_TEMP/sourcemap.json" src

@@ -27,7 +27,7 @@ local GetBoard = Remotes:WaitForChild("GetBoard") :: RemoteFunction
 -- Audio asset ids. The game's music and effects are in web/audio/; upload
 -- them through the Creator Hub (Roblox takes .ogg and .mp3) and paste the
 -- ids here as "rbxassetid://123". An empty id is silently skipped.
-local SOUND_IDS = {
+local SOUND_IDS: { [string]: string } = {
 	music = "", -- moonlightdrift-gameloop.ogg
 	crash = "", -- crashsound.ogg
 	button = "", -- buttonsound1.ogg
