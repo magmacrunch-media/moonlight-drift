@@ -8,6 +8,7 @@ One repo, every version of the game.
 | Browser | [`web/`](web/) | [adenosine](https://github.com/magmacrunch-media/adenosine) | [magmacrunch.com/arcade/moonlight-drift](https://magmacrunch.com/arcade/moonlight-drift/) |
 | Wii | [`wii/`](wii/) | [magnolia](https://github.com/magmacrunch-media/magnolia) | Homebrew Channel |
 | Terminal | [`tui/`](tui/) | [magmacrunch.engine](https://pypi.org/project/magmacrunch/) | any terminal |
+| Roblox | [`roblox/`](roblox/) | Roblox (Luau, built with Rojo) | Roblox Studio; not yet published |
 
 ## Layout
 
@@ -23,6 +24,9 @@ One repo, every version of the game.
   `moonlight-drift`. Also available as part of the
   [magmacrunch](https://pypi.org/project/magmacrunch/) arcade.
   See [`tui/README.md`](tui/README.md).
+- `roblox/`: the Roblox version, in Luau. The rules are ported from
+  `wii/source/` and host-tested under Lune, and it builds with Rojo. See
+  [`roblox/README.md`](roblox/README.md).
 
 ## Working on the game
 

@@ -1,0 +1,4 @@
+# Built places. The source of truth is src/; `rojo build` makes these.
+*.rbxl
+*.rbxlx
+sourcemap.json

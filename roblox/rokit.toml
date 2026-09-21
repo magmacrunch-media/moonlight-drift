@@ -1,0 +1,4 @@
+# Toolchain for the Roblox version. `rokit install` fetches both.
+[tools]
+rojo = "rojo-rbx/rojo@7.4.4"
+lune = "lune-org/lune@0.8.9"

@@ -1,6 +1,6 @@
 # Moonlight Drift — agent brief
 
-One game, two versions, one repo:
+One game, four versions, one repo:
 
 - `web/` — browser version (adenosine engine, plain JS). Source of truth for
   gameplay and balance. Deployed by the website repo: run
@@ -10,8 +10,11 @@ One game, two versions, one repo:
   and porting detail. Expects magnolia checked out beside this repo.
 - `tui/` — terminal version (the `magmacrunch.engine` TUI engine, Python).
   Has its own `README.md`. `moonlight-drift`, or seated by the magmacrunch arcade.
+- `roblox/`: Roblox version (Luau, Rojo). Rules in `src/shared/` are ported
+  from `wii/source/` and host-tested with `lune run tests/run`. Has its own
+  `README.md`.
 
-A gameplay change is not done until all three versions have it (or the commit
+A gameplay change is not done until every version has it (or the commit
 says why one is skipped). `web/js/` is the reference the Wii port's comments
 cite, and the terminal port was taken from `wii/source/` for the same reason
 George Boole's was — it is the same rules already separated from a renderer.

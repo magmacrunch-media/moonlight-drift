@@ -1,0 +1,34 @@
+{
+  "name": "moonlight-drift",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "MoonlightDrift": {
+        "$path": "src/shared"
+      },
+      "MoonlightDriftRemotes": {
+        "$className": "Folder",
+        "StartRun": { "$className": "RemoteEvent" },
+        "SubmitRun": { "$className": "RemoteFunction" },
+        "GetBoard": { "$className": "RemoteFunction" }
+      }
+    },
+    "ServerScriptService": {
+      "MoonlightDrift": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "MoonlightDrift": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Players": {
+      "$properties": {
+        "CharacterAutoLoads": false
+      }
+    }
+  }
+}
