@@ -165,6 +165,37 @@ test("roster spot checks against characters.c", function()
 	eq(Characters.get(24).key, "carl")
 end)
 
+test("every pilot has both sprites, and an origin inside them", function()
+	for _, ch in Characters.list do
+		for _, pose in { "idle", "thrust" } do
+			local path = ("../wii/sprites/%s-%s.png"):format(ch.key, pose)
+			assert(fs.isFile(path), "missing " .. path)
+		end
+		assert(ch.origin.x >= 0 and ch.origin.x < 128 and ch.origin.y >= 0 and ch.origin.y < 128, ch.key .. " origin")
+	end
+	eq(Characters.get(1).origin.x, 44, "cat-synth origin, from characters.c")
+	eq(Characters.get(Characters.indexOf("didgeridoo-man")).origin.x, 23)
+end)
+
+test("sprite offsets tile the sheet without overlapping", function()
+	local seen = {}
+	local size, cell = Characters.SPRITE_SIZE, Characters.SHEET_CELL
+	local extent = Characters.SHEET_COLUMNS * cell
+	for i = 1, Characters.count() do
+		for _, thrust in { false, true } do
+			local x, y = Characters.spriteOffset(i, thrust)
+			local id = x .. "," .. y
+			assert(not seen[id], "two sprites at " .. id)
+			seen[id] = true
+			assert(x % cell >= 1 and x % cell + size <= cell - 1, "sprite touches its cell's edge at x " .. x)
+			assert(x + size <= extent and y + size <= extent, "sprite outside the sheet at " .. id)
+		end
+	end
+	local x, y = Characters.spriteOffset(1, true)
+	eq(x, 131, "cat-synth thrust is the second cell")
+	eq(y, 1)
+end)
+
 test("Characters.get clamps out-of-range indices", function()
 	eq(Characters.get(0).key, "cat-synth")
 	eq(Characters.get(99).key, "carl")

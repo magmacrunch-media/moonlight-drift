@@ -14,6 +14,9 @@ export type Pilot = {
 	gravity: number,
 	maxVelocity: number,
 	hitbox: Characters.Hitbox,
+	-- Where the sprite's drawing origin is; the renderer's business, carried
+	-- here so it travels with the pilot it belongs to.
+	origin: Characters.Point,
 }
 
 -- C's (int) cast truncates toward zero; math.floor would not, for negatives.
@@ -32,6 +35,7 @@ function Pilot.new(character: Characters.Character): Pilot
 		gravity = character.gravity,
 		maxVelocity = character.maxVelocity,
 		hitbox = character.hitbox,
+		origin = character.origin,
 	}
 end
 

@@ -9,9 +9,10 @@ draws in the GUI as a 2D arcade game. Nobody gets an avatar.
 | Path | Becomes | What it is |
 |------|---------|------------|
 | `src/shared/` | `ReplicatedStorage.MoonlightDrift` | The rules: `Config`, `Characters`, `Theme`, `Pilot`, `Obstacles`, `Run`. No Roblox services, so they also run under Lune. |
-| `src/client/` | `StarterPlayerScripts.MoonlightDrift` | `Main` (state machine, input, fixed-step loop), `Playfield` (renderer), `Screens` (menus). |
+| `src/client/` | `StarterPlayerScripts.MoonlightDrift` | `Main` (state machine, input, sound, fixed-step loop), `Playfield` (renderer), `Screens` (menus), `Assets` (uploaded asset ids). |
 | `src/server/` | `ServerScriptService.MoonlightDrift` | `Scores`: the high-score board and the checks on submitted scores. |
 | `tests/run.luau` | nothing | Host tests for `src/shared`, run with Lune. |
+| `tools/make_atlas.py` | `assets/pilots.png` | Packs the 48 sprites in `wii/sprites/` into one sheet to upload. |
 | `default.project.json` | the place | The Rojo project. It also declares the three remotes and sets `Players.CharacterAutoLoads = false`. |
 
 ## Where the rules come from
@@ -89,17 +90,40 @@ to wipe the board. In Studio, DataStores only work once **Game Settings >
 Security > Enable Studio Access to API Services** is on. Until then the board
 keeps scores for the session only and labels them "(this server only)".
 
+## Art and sound
+
+Roblox serves images and audio only by asset id, and an id only exists once
+somebody uploads the file. The ids go in `src/client/Assets.luau`. Any id left
+empty is skipped: the pilots fall back to their accent colour and glyph, and
+that sound stays silent.
+
+| Id | Upload |
+|----|--------|
+| `pilotSheet` | `roblox/assets/pilots.png` |
+| `music` | `web/audio/moonlightdrift-gameloop.ogg` |
+| `crash` | `web/audio/crashsound.ogg` |
+| `button` | `web/audio/buttonsound1.ogg` |
+| `start` | `web/audio/buttonsound2.ogg` |
+
+In Studio: **View > Asset Manager > Bulk Import**, then right-click each asset
+and choose **Copy ID**.
+
+The pilots are the Wii port's sprites, all 48 in one 910x910 sheet, so there is
+one image to upload instead of 48. Each sprite is drawn at world scale with the
+character's origin on the pilot's position, exactly as `game_render.c` does it.
+The sheet's layout is defined in `Characters.luau`, and the tool reads it from
+there. A sprite change means re-running `python tools/make_atlas.py`,
+uploading the new sheet and pasting its new id. An upload is never updated in
+place. CI runs `make_atlas.py --check`, so a stale sheet fails the build.
+
+The sound follows `web/js/main.js`. The music starts on the first menu press,
+fades in over two seconds to volume 0.3, and loops for the rest of the session,
+crashes included. SOUND ON/OFF on the title screen mutes everything.
+
 ## Not yet here
 
-- **Art.** The pilots are drawn as their accent colour and glyph, at the size of
-  the hitbox. To use the real sprites, upload the PNGs from `wii/sprites/` as
-  Roblox images and replace the body in `Playfield.luau` with an `ImageLabel`.
-  The sprite origins in `characters.c` say where each hitbox sits inside its
-  image.
-- **Audio.** `SOUND_IDS` in `Main.client.luau` is empty. Upload
-  `web/audio/moonlightdrift-gameloop.ogg`, `crashsound.ogg` and
-  `buttonsound1.ogg`, then paste in the asset ids.
-- **Shooting stars**, and the web version's character-select portraits.
+- Shooting stars, and the extra characters in `web/js/characters/more/`, which
+  the website does not load either.
 
 The game's name, art, audio and characters are reserved; see `../NOTICE`.
 Uploading them to Roblox is for the rights holder to do.

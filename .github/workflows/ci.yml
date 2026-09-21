@@ -125,7 +125,7 @@ jobs:
         working-directory: tui
         run: python -m pytest -q
 
-  # The Roblox version. Three tools, all pinned to the versions in
+  # The Roblox version. Three tools, plus Pillow for the sprite sheet, all pinned to the versions in
   # roblox/rokit.toml or beside it, fetched as release zips rather than through
   # rokit so the job has nothing to bootstrap.
   #
@@ -160,6 +160,14 @@ jobs:
 
       - name: Rules
         run: lune run tests/run
+
+      # assets/pilots.png is uploaded to Roblox by hand, so the one thing a
+      # machine can check is that it still matches wii/sprites/ and the layout
+      # in Characters.luau. Stale means re-run the tool and re-upload.
+      - name: Sprite sheet is current
+        run: |
+          pip install --quiet pillow
+          python tools/make_atlas.py --check
 
       - name: Build the place
         run: rojo build -o "$RUNNER_TEMP/moonlight-drift.rbxl"

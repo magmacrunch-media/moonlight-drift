@@ -8,6 +8,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("MoonlightDrift")
 local Characters = require(Shared:WaitForChild("Characters"))
+local Assets = require(script.Parent:WaitForChild("Assets"))
+
+-- The middle of each sprite, which is where the art is; the rest of the
+-- 128x128 is room for glows and exhaust.
+local PORTRAIT_CROP = 80
 
 local GOLD = Color3.fromHex("#ffd700")
 local CYAN = Color3.fromHex("#00d4ff")
@@ -120,6 +125,7 @@ export type Actions = {
 	back: () -> (),
 	choose: (index: number) -> (),
 	again: () -> (),
+	toggleSound: () -> (),
 }
 
 export type Screens = {
@@ -131,6 +137,7 @@ export type Screens = {
 	board: Frame,
 	setPilot: (character: Characters.Character) -> (),
 	setScore: (score: number) -> (),
+	setSound: (on: boolean) -> (),
 	showOver: (score: number, reply: { best: number, isNewBest: boolean, accepted: boolean, board: Board }?, me: string) -> (),
 	showBoard: (board: Board?, me: string) -> (),
 	show: (which: Frame?) -> (),
@@ -146,6 +153,10 @@ function Screens.new(playfield: Frame, actions: Actions): Screens
 	button(title, "FLY", 0.44, actions.play)
 	local pilotButton = button(title, "PILOT", 0.56, actions.openSelect)
 	button(title, "SCORES", 0.68, actions.openBoard)
+	local soundButton = button(title, "SOUND ON", 0.03, actions.toggleSound)
+	soundButton.AnchorPoint = Vector2.new(1, 0)
+	soundButton.Position = UDim2.fromScale(0.98, 0.03)
+	soundButton.Size = UDim2.fromScale(0.16, 0.06)
 	text(title, "SPACE / CLICK / TAP / (A) to thrust", 0.86, 0.045, DIM)
 
 	-- Pilot select
@@ -195,6 +206,21 @@ function Screens.new(playfield: Frame, actions: Actions): Screens
 		swatch.TextColor3 = PANEL
 		swatch.ZIndex = 12
 		swatch.Parent = cell
+		if Assets.pilotSheet ~= "" then
+			swatch.Text = ""
+			swatch.BackgroundColor3 = Color3.fromRGB(8, 10, 32)
+			local portrait = Instance.new("ImageLabel")
+			portrait.BackgroundTransparency = 1
+			portrait.Size = UDim2.fromScale(1, 1)
+			portrait.Image = Assets.pilotSheet
+			local x, y = Characters.spriteOffset(i, false)
+			local inset = (Characters.SPRITE_SIZE - PORTRAIT_CROP) / 2
+			portrait.ImageRectOffset = Vector2.new(x + inset, y + inset)
+			portrait.ImageRectSize = Vector2.new(PORTRAIT_CROP, PORTRAIT_CROP)
+			portrait.ScaleType = Enum.ScaleType.Fit
+			portrait.ZIndex = 13
+			portrait.Parent = swatch
+		end
 		local name = text(cell, ch.name, 0.1, 0.42, WHITE, 0.66, 0.64)
 		name.TextXAlignment = Enum.TextXAlignment.Left
 		local stats = text(
@@ -257,6 +283,9 @@ function Screens.new(playfield: Frame, actions: Actions): Screens
 		end,
 		setScore = function(score)
 			scoreLabel.Text = tostring(score)
+		end,
+		setSound = function(on)
+			soundButton.Text = if on then "SOUND ON" else "SOUND OFF"
 		end,
 		showOver = function(score, reply, me)
 			overScore.Text = "SCORE " .. score

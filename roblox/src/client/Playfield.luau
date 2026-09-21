@@ -16,6 +16,7 @@ local Characters = require(Shared:WaitForChild("Characters"))
 local Obstacles = require(Shared:WaitForChild("Obstacles"))
 local Theme = require(Shared:WaitForChild("Theme"))
 local Run = require(Shared:WaitForChild("Run"))
+local Assets = require(script.Parent:WaitForChild("Assets"))
 
 local WW, WH = Config.WORLD_WIDTH, Config.WORLD_HEIGHT
 local OW = Config.OBSTACLE_WIDTH
@@ -99,8 +100,23 @@ function Playfield.new(gui: ScreenGui): Playfield
 		})
 	end
 
-	-- Pilot: a coloured body the size of the hitbox, so the box you steer is
-	-- the box that collides, with the flame hanging beneath it.
+	-- Pilot, drawn from the sprite sheet the way the Wii port draws it: the
+	-- 128x128 sprite at world scale, with the character's origin on the
+	-- pilot's position. Idle and thrust are separate sprites, and the thrust
+	-- one carries its own flame.
+	local sprite = Instance.new("ImageLabel")
+	sprite.Name = "PilotSprite"
+	sprite.BackgroundTransparency = 1
+	sprite.Image = Assets.pilotSheet
+	sprite.ImageRectSize = Vector2.new(Characters.SPRITE_SIZE, Characters.SPRITE_SIZE)
+	sprite.ZIndex = 3
+	sprite.Visible = false
+	sprite.Parent = root
+	local hasSheet = Assets.pilotSheet ~= ""
+	local idleOffset, thrustOffset = Vector2.zero, Vector2.zero
+
+	-- Without the sheet: a coloured body the size of the hitbox, so the box
+	-- you steer is the box that collides, with the flame hanging beneath it.
 	local pilot = plain("Pilot", Color3.new(1, 1, 1), root)
 	pilot.ZIndex = 3
 	local corner = Instance.new("UICorner")
@@ -196,6 +212,9 @@ function Playfield.new(gui: ScreenGui): Playfield
 	function self:setPilot(character)
 		pilot.BackgroundColor3 = Color3.fromHex(character.accent)
 		glyph.Text = character.glyph
+		local index = Characters.indexOf(character.key) or 1
+		idleOffset = Vector2.new(Characters.spriteOffset(index, false))
+		thrustOffset = Vector2.new(Characters.spriteOffset(index, true))
 	end
 
 	function self:clear()
@@ -207,15 +226,21 @@ function Playfield.new(gui: ScreenGui): Playfield
 
 	function self:draw(run, thrustHeld)
 		local p = run and run.pilot
-		pilot.Visible = p ~= nil
-		if p then
+		local burning = thrustHeld and run ~= nil and run.crash == nil
+		pilot.Visible = p ~= nil and not hasSheet
+		sprite.Visible = p ~= nil and hasSheet
+		if p and hasSheet then
+			local o = p.origin
+			local s = Characters.SPRITE_SIZE
+			box(sprite, p.x - o.x, p.y - o.y, s, s)
+			sprite.ImageRectOffset = if burning then thrustOffset else idleOffset
+		elseif p then
 			local hb = p.hitbox
 			box(pilot, p.x + hb.ox, p.y + hb.oy, hb.w, hb.h)
 			pilot.Rotation = math.clamp(p.velocity * 2, -18, 18)
 		end
 		flameFrame += 1
 		local flicker = if flameFrame % 6 < 3 then 1 else 0.8
-		local burning = thrustHeld and run ~= nil and run.crash == nil
 		flame.Size = UDim2.fromScale(if burning then 0.45 else 0.25, (if burning then 0.8 else 0.25) * flicker)
 		flame.BackgroundColor3 = if burning then Color3.fromHex("#ffb347") else Color3.fromHex("#ff5a36")
 

@@ -10,12 +10,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("MoonlightDrift")
 local Config = require(Shared:WaitForChild("Config"))
 local Characters = require(Shared:WaitForChild("Characters"))
 local Run = require(Shared:WaitForChild("Run"))
+local Assets = require(script.Parent:WaitForChild("Assets"))
 local Playfield = require(script.Parent:WaitForChild("Playfield"))
 local Screens = require(script.Parent:WaitForChild("Screens"))
 
@@ -23,15 +25,6 @@ local Remotes = ReplicatedStorage:WaitForChild("MoonlightDriftRemotes")
 local StartRun = Remotes:WaitForChild("StartRun") :: RemoteEvent
 local SubmitRun = Remotes:WaitForChild("SubmitRun") :: RemoteFunction
 local GetBoard = Remotes:WaitForChild("GetBoard") :: RemoteFunction
-
--- Audio asset ids. The game's music and effects are in web/audio/; upload
--- them through the Creator Hub (Roblox takes .ogg and .mp3) and paste the
--- ids here as "rbxassetid://123". An empty id is silently skipped.
-local SOUND_IDS: { [string]: string } = {
-	music = "", -- moonlightdrift-gameloop.ogg
-	crash = "", -- crashsound.ogg
-	button = "", -- buttonsound1.ogg
-}
 
 local STEP = 1 / Config.FRAME_RATE
 local MAX_STEPS_PER_RENDER = 6
@@ -48,17 +41,33 @@ pcall(function()
 end)
 
 ------------------------------------------------------------------------------
--- Sound
+-- Sound, as web/js/main.js sets it up: the music loops from the first menu
+-- press for the rest of the session, fading in over two seconds, and does not
+-- stop for a crash. One switch mutes music and effects together.
+
+type SoundSpec = { id: string, volume: number, looped: boolean }
+local SOUNDS: { [string]: SoundSpec } = {
+	music = { id = Assets.music, volume = 0.3, looped = true },
+	crash = { id = Assets.crash, volume = 0.5, looped = false },
+	button = { id = Assets.button, volume = 0.4, looped = false },
+	start = { id = Assets.start, volume = 0.4, looped = false },
+}
+local MUSIC_FADE_IN = 2
+
+local soundGroup = Instance.new("SoundGroup")
+soundGroup.Name = "MoonlightDrift"
+soundGroup.Parent = SoundService
 
 local sounds: { [string]: Sound } = {}
-for name, id in SOUND_IDS do
-	if id ~= "" then
+for name, spec in SOUNDS do
+	if spec.id ~= "" then
 		local s = Instance.new("Sound")
-		s.Name = "MoonlightDrift_" .. name
-		s.SoundId = id
-		s.Looped = name == "music"
-		s.Volume = if name == "music" then 0.4 else 0.7
-		s.Parent = SoundService
+		s.Name = name
+		s.SoundId = spec.id
+		s.Looped = spec.looped
+		s.Volume = spec.volume
+		s.SoundGroup = soundGroup
+		s.Parent = soundGroup
 		sounds[name] = s
 	end
 end
@@ -70,11 +79,22 @@ local function play(name: string)
 	end
 end
 
-local function stop(name: string)
-	local s = sounds[name]
-	if s then
-		s:Stop()
+local musicStarted = false
+local function startMusic()
+	local music = sounds.music
+	if musicStarted or not music then
+		return
 	end
+	musicStarted = true
+	music.Volume = 0
+	music:Play()
+	TweenService:Create(music, TweenInfo.new(MUSIC_FADE_IN), { Volume = SOUNDS.music.volume }):Play()
+end
+
+local soundOn = true
+local function setSound(on: boolean)
+	soundOn = on
+	soundGroup.Volume = if on then 1 else 0
 end
 
 ------------------------------------------------------------------------------
@@ -155,7 +175,6 @@ end
 local function enter(to: State)
 	state = to
 	if to == "title" then
-		stop("music")
 		field:clear()
 		run = nil
 		screens.show(screens.title)
@@ -179,9 +198,9 @@ local function enter(to: State)
 		screens.setScore(0)
 		screens.show(screens.hud)
 		StartRun:FireServer()
-		play("music")
+		play("start")
+		startMusic()
 	elseif to == "over" then
-		stop("music")
 		play("crash")
 		field:flash()
 		overAt = os.clock()
@@ -200,6 +219,7 @@ end
 local function clicked(fn: () -> ()): () -> ()
 	return function()
 		play("button")
+		startMusic()
 		fn()
 	end
 end
@@ -219,6 +239,7 @@ screens = Screens.new(field.root, {
 	end),
 	choose = function(index: number)
 		play("button")
+		startMusic()
 		characterIndex = index
 		screens.setPilot(character())
 		field:setPilot(character())
@@ -227,9 +248,15 @@ screens = Screens.new(field.root, {
 	again = clicked(function()
 		enter("ready")
 	end),
+	toggleSound = function()
+		setSound(not soundOn)
+		play("button")
+		screens.setSound(soundOn)
+	end,
 })
 
 screens.setPilot(character())
+screens.setSound(soundOn)
 field:setPilot(character())
 enter("title")
 
