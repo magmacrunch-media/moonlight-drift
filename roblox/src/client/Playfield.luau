@@ -20,7 +20,6 @@ local Assets = require(script.Parent:WaitForChild("Assets"))
 
 local WW, WH = Config.WORLD_WIDTH, Config.WORLD_HEIGHT
 local OW = Config.OBSTACLE_WIDTH
-local SLICE = 8
 local SKY = Color3.fromRGB(8, 10, 32)
 
 -- web/js/stars.js's palette, white weighted three to one.
@@ -142,6 +141,15 @@ function Playfield.new(gui: ScreenGui): Playfield
 	flameCorner.CornerRadius = UDim.new(0.5, 0)
 	flameCorner.Parent = flame
 
+	-- The cyan lines drawBackground() puts across the top and bottom of the
+	-- canvas: the edges of the world, which are lethal.
+	for _, edge in { 0, WH - 2 } do
+		local line = plain("Boundary", Color3.fromHex("#00d4ff"), root)
+		box(line, 0, edge, WW, 2)
+		line.BackgroundTransparency = 0.7
+		line.ZIndex = 1
+	end
+
 	local flashFrame = plain("Flash", Color3.new(1, 1, 1), root)
 	flashFrame.Size = UDim2.fromScale(1, 1)
 	flashFrame.BackgroundTransparency = 1
@@ -151,6 +159,72 @@ function Playfield.new(gui: ScreenGui): Playfield
 	local flameFrame = 0
 	local flashLeft = 0
 
+	-- Every tenth column is marked, as drawMilestoneMarkers() in
+	-- web/js/obstacles.js does it: a chunky dashed line down the whole height
+	-- in the theme's complement, and the count in a bordered box in the gap.
+	local function buildMilestone(c: Frame, o: Obstacles.Obstacle)
+		local mark = rgb(Theme.complementary(o.theme))
+		local DASH, GAP_, LINE = 8, 8, 4
+		local y = 0
+		while y < WH do
+			local dash = plain("Dash", mark, c)
+			dash.AnchorPoint = Vector2.new(0.5, 0)
+			dash.Position = UDim2.fromScale(0.5, y / WH)
+			dash.Size = UDim2.fromScale(LINE / OW, math.min(DASH, WH - y) / WH)
+			dash.ZIndex = 1
+			y += DASH + GAP_
+		end
+
+		local BOX_W, BOX_H = 80, 50
+		local middle = (o.topHeight + o.bottomY) / 2
+		local function plate(w: number, h: number, color: Color3, transparency: number, z: number): Frame
+			local f = plain("Plate", color, c)
+			f.AnchorPoint = Vector2.new(0.5, 0.5)
+			f.Position = UDim2.fromScale(0.5, middle / WH)
+			f.Size = UDim2.fromScale(w / OW, h / WH)
+			f.BackgroundTransparency = transparency
+			f.ZIndex = z
+			return f
+		end
+		plate(BOX_W + 8, BOX_H + 8, Color3.fromRGB(26, 26, 46), 0, 4)
+		plate(BOX_W + 4, BOX_H + 4, mark, 0, 5)
+		plate(BOX_W, BOX_H, Color3.fromRGB(26, 26, 46), 0.1, 6)
+		local inner = plate(BOX_W - 4, BOX_H - 4, rgb(o.theme.secondary), 0, 7)
+		local face = plate(BOX_W - 8, BOX_H - 8, Color3.fromRGB(26, 26, 46), 0.1, 8)
+		inner.Name = "InnerBorder"
+		face.Name = "Face"
+
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.AnchorPoint = Vector2.new(0.5, 0.5)
+		label.Position = UDim2.fromScale(0.5, middle / WH)
+		label.Size = UDim2.fromScale((BOX_W - 12) / OW, (BOX_H - 14) / WH)
+		label.Font = Enum.Font.Arcade
+		label.Text = tostring(o.milestone)
+		label.TextScaled = true
+		label.TextColor3 = mark
+		label.ZIndex = 9
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.new(0, 0, 0)
+		stroke.Thickness = 2
+		stroke.Parent = label
+		label.Parent = c
+	end
+
+	-- A column is built once, out of horizontal bands, and then only moved.
+	-- The three styles are web/js/obstacles.js's drawCandyStripedObstacle,
+	-- drawFacetedCrystalObstacle and drawRoughCrystalObstacle: the same band
+	-- heights, colour cycles and highlights.
+	--
+	-- What is not copied is the web's *widths*. There it steps the drawn width
+	-- every few bands while collision uses the smooth formula, so the picture
+	-- and the hitbox disagree by a few units. Here every band is measured with
+	-- profileTop/profileBottom, the functions collision reads, and the
+	-- decoration is laid inside that silhouette. The web's rough style also
+	-- juts blocks out past its own collision width; those are left out for the
+	-- same reason. What you see is what hits you.
+	local BAND = { [0] = 6, [1] = 8, [2] = 10 }
+
 	local function buildColumn(o: Obstacles.Obstacle): Frame
 		local c = Instance.new("Frame")
 		c.Name = "Column" .. o.id
@@ -159,47 +233,87 @@ function Playfield.new(gui: ScreenGui): Playfield
 		c.ZIndex = 2
 
 		local primary, secondary, accent = rgb(o.theme.primary), rgb(o.theme.secondary), rgb(o.theme.accent)
-		local function slice(y: number, h: number, left: number, right: number, color: Color3)
-			local s = plain("S", color, c)
-			s.Position = UDim2.fromScale((left - o.x) / OW, y / WH)
+		local palette = { primary, secondary, accent }
+
+		-- x and w are world units; the frame is positioned inside the column,
+		-- which is OBSTACLE_WIDTH wide and spans the full height.
+		local function piece(x: number, y: number, w: number, h: number, color: Color3, transparency: number?): Frame
+			local f = plain("B", color, c)
+			f.Position = UDim2.fromScale((x - o.x) / OW, y / WH)
 			-- One unit of overlap hides the seams scaling would otherwise open.
-			s.Size = UDim2.fromScale((right - left) / OW, (h + 1) / WH)
-			s.ZIndex = 2
+			f.Size = UDim2.fromScale(w / OW, (h + 1) / WH)
+			f.BackgroundTransparency = transparency or 0
+			f.ZIndex = 2
+			return f
 		end
 
-		-- Stalactite: widest at its root, so each slice takes its top row.
-		local y, band = 0, 0
-		while y < o.topHeight do
-			local h = math.min(SLICE, o.topHeight - y)
-			local l, r = Obstacles.profileTop(o, y)
-			local tip = y + h >= o.topHeight
-			slice(y, h, l, r, if tip then accent elseif band % 2 == 0 then primary else secondary)
-			y += h
-			band += 1
+		-- One band of a column: the body, then the style's highlights, all
+		-- clipped to the band's own width so nothing leaves the silhouette.
+		local function band(index: number, y: number, h: number, left: number, right: number)
+			local w = right - left
+			-- Every piece of a band is clamped to the band, so a highlight can
+			-- never reach past the outline collision reads, whatever the
+			-- arithmetic below works out to.
+			local function part(x: number, py: number, pw: number, ph: number, color: Color3, transparency: number?)
+				local x0 = math.clamp(x, left, right)
+				local x1 = math.clamp(x + pw, left, right)
+				if x1 > x0 then
+					piece(x0, py, x1 - x0, ph, color, transparency)
+				end
+			end
+			if o.style == 0 then
+				-- Candy stripes: three colours in turn, a glossy accent stripe
+				-- and a brighter shine inside it.
+				part(left, y, w, h, palette[index % 3 + 1])
+				local gloss = math.max(4, w * 0.2)
+				part(left + math.min(3, w - gloss), y, gloss, h, accent)
+				local shine = math.max(2, w * 0.1)
+				if h > 2 then
+					part(left + math.min(5, w - shine), y + 1, shine, h - 2, Color3.new(1, 1, 1), 0.6)
+				end
+			elseif o.style == 1 then
+				-- Faceted crystal: the facet's angle decides which side catches
+				-- the light, so a column reads as turning as it tapers.
+				part(left, y, w, h, palette[(index + math.floor(o.seed * 10)) % 4 % 3 + 1])
+				local angle = math.sin(o.seed * 200 + index)
+				if angle > 0.2 then
+					part(left, y, w * 0.35, h, accent)
+					part(left + w * 0.08, y + 1, math.max(2, w * 0.12), math.max(1, h - 2), Color3.new(1, 1, 1), 0.65)
+				elseif angle < -0.2 then
+					part(left + w * 0.65, y, w * 0.35, h, secondary)
+				end
+			else
+				-- Rough crystal: blocks of unrelated colour, with an occasional
+				-- accent edge where the web version grows a jut.
+				part(left, y, w, h, palette[math.floor(o.seed * 1000 + index * 7) % 3 + 1])
+				if math.sin(o.seed * 400 + index) > 0.6 then
+					local jut = math.min(w * 0.3, 8)
+					local onLeft = math.cos(o.seed * 150 + index) > 0
+					part(if onLeft then left else right - jut, y + 1, jut, math.max(1, h - 2), accent)
+				end
+			end
 		end
-		-- Stalagmite: widest at its foot, so each slice takes its bottom row.
-		y, band = o.bottomY, 0
-		while y < WH do
-			local h = math.min(SLICE, WH - y)
-			local l, r = Obstacles.profileBottom(o, y + h)
-			slice(y, h, l, r, if band == 0 then accent elseif band % 2 == 0 then primary else secondary)
+
+		-- Stalactite: widest at its root, so each band takes its top row.
+		local step = BAND[o.style]
+		local y, index = 0, 0
+		while y < o.topHeight do
+			local h = math.min(step, o.topHeight - y)
+			band(index, y, h, Obstacles.profileTop(o, y))
 			y += h
-			band += 1
+			index += 1
+		end
+		-- Stalagmite: widest at its foot, so each band takes its bottom row.
+		y, index = o.bottomY, 0
+		while y < WH do
+			local h = math.min(step, WH - y)
+			band(index, y, h, Obstacles.profileBottom(o, y + h))
+			y += h
+			index += 1
 		end
 
 		if o.milestone > 0 then
-			local label = Instance.new("TextLabel")
-			label.BackgroundTransparency = 1
-			label.AnchorPoint = Vector2.new(0.5, 0.5)
-			label.Position = UDim2.fromScale(0.5, (o.topHeight + Config.GAP / 2) / WH)
-			label.Size = UDim2.fromScale(2.5, 40 / WH)
-			label.Font = Enum.Font.Arcade
-			label.Text = tostring(o.milestone)
-			label.TextScaled = true
-			label.TextColor3 = accent
-			label.TextTransparency = 0.25
-			label.ZIndex = 2
-			label.Parent = c
+			buildMilestone(c, o)
 		end
 
 		c.Parent = columnLayer

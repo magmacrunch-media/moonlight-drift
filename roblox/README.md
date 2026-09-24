@@ -120,10 +120,34 @@ The sound follows `web/js/main.js`. The music starts on the first menu press,
 fades in over two seconds to volume 0.3, and loops for the rest of the session,
 crashes included. SOUND ON/OFF on the title screen mutes everything.
 
-## Not yet here
+## What matches the website, and what does not
 
-- Shooting stars, and the extra characters in `web/js/characters/more/`, which
-  the website does not load either.
+The screens carry the website's own words and art: its ASCII logo on the title
+card, its how-to-play panel on the ready screen, "GAME OVER! / final score: /
+too cheap for ya?!", the two-column score board, the credits, and the ASCII
+star field that fills whatever a screen leaves around the 16:9 playfield. The
+score plate, the cyan boundary lines, the three obstacle styles (candy stripe,
+faceted crystal, rough crystal) with their band heights, colour cycles and
+highlights, and the milestone markers with their complementary dashed line all
+follow `web/js/`. A press anywhere on the title starts a run, and choosing a
+pilot leads to the ready screen, as closing the website's character modal does.
+Pilot select shows each character's description from `character-balance.js`.
+
+Three things deliberately differ.
+
+- **The columns' outlines are collision-true.** The website steps a drawn
+  column's width every few bands while collision uses the smooth formula, so
+  its picture and its hitbox disagree by a few units, and its rough style juts
+  blocks out past its own collision width. Here every band is measured with the
+  functions collision reads, and decoration is clamped inside that outline.
+- **Scores are per account, not initials.** Roblox knows who is playing, so
+  there is no initials prompt; the board shows names and each player's best.
+- **Buttons are on the screen.** The website puts its controls in HTML around
+  the canvas and in modals; there is nowhere here to put them but the screen.
+
+Not here: shooting stars (`web/js/stars.js` defines them and the website's
+renderer never calls them), and the extra characters in
+`web/js/characters/more/`, which the website does not load either.
 
 The game's name, art, audio and characters are reserved; see `../NOTICE`.
 Uploading them to Roblox is for the rights holder to do.

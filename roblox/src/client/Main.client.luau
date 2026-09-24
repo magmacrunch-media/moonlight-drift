@@ -18,6 +18,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local Characters = require(Shared:WaitForChild("Characters"))
 local Run = require(Shared:WaitForChild("Run"))
 local Assets = require(script.Parent:WaitForChild("Assets"))
+local StarField = require(script.Parent:WaitForChild("StarField"))
 local Playfield = require(script.Parent:WaitForChild("Playfield"))
 local Screens = require(script.Parent:WaitForChild("Screens"))
 
@@ -102,6 +103,30 @@ end
 -- inside that frame sees the same answer, as the Wii port's input_a_held()
 -- does once per vsync.
 
+-- A press that Roblox did not hand to a button first. The website starts a
+-- run from a click anywhere on the title screen, and this is what separates
+-- that from a click on PILOT or SCORES, which polling alone cannot see.
+local rawPress = false
+local THRUST_INPUTS = {
+	[Enum.UserInputType.MouseButton1] = true,
+	[Enum.UserInputType.Touch] = true,
+}
+local THRUST_KEYCODES = {
+	[Enum.KeyCode.Space] = true,
+	[Enum.KeyCode.W] = true,
+	[Enum.KeyCode.Up] = true,
+	[Enum.KeyCode.ButtonA] = true,
+}
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then
+		return
+	end
+	if THRUST_INPUTS[input.UserInputType] or THRUST_KEYCODES[input.KeyCode] then
+		rawPress = true
+	end
+end)
+
 local touches: { [InputObject]: boolean } = {}
 UserInputService.TouchStarted:Connect(function(input)
 	touches[input] = true
@@ -145,6 +170,23 @@ backdrop.Size = UDim2.fromScale(1, 1)
 backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
 backdrop.BorderSizePixel = 0
 backdrop.Parent = gui
+
+-- The website's ASCII star field, showing in whatever the 16:9 playfield
+-- leaves. Monospaced and never wrapped: the art is drawn by column.
+local backdropStars = Instance.new("TextLabel")
+backdropStars.Name = "StarField"
+backdropStars.BackgroundTransparency = 1
+backdropStars.Size = UDim2.fromScale(1, 1)
+backdropStars.Font = Enum.Font.Code
+backdropStars.TextSize = 14
+backdropStars.Text = StarField
+backdropStars.TextColor3 = Color3.fromRGB(120, 130, 190)
+backdropStars.TextTransparency = 0.45
+backdropStars.TextWrapped = false
+backdropStars.TextXAlignment = Enum.TextXAlignment.Left
+backdropStars.TextYAlignment = Enum.TextYAlignment.Top
+backdropStars.ClipsDescendants = true
+backdropStars.Parent = backdrop
 gui.Parent = localPlayer:WaitForChild("PlayerGui")
 
 local field = Playfield.new(gui)
@@ -225,9 +267,6 @@ local function clicked(fn: () -> ()): () -> ()
 end
 
 screens = Screens.new(field.root, {
-	play = clicked(function()
-		enter("ready")
-	end),
 	openSelect = clicked(function()
 		enter("select")
 	end),
@@ -243,7 +282,9 @@ screens = Screens.new(field.root, {
 		characterIndex = index
 		screens.setPilot(character())
 		field:setPilot(character())
-		enter("title")
+		-- Choosing a pilot leads straight to the ready screen, the way closing
+		-- the website's character modal does.
+		enter("ready")
 	end,
 	again = clicked(function()
 		enter("ready")
@@ -268,17 +309,16 @@ RunService.RenderStepped:Connect(function(dt)
 	local pressed = held and not wasHeld
 	wasHeld = held
 
-	if state == "title" and pressed and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+	if state == "title" and rawPress then
+		-- Click, tap or key anywhere but a button, as the website's title
+		-- overlay does it.
 		enter("ready")
 	elseif state == "ready" and pressed then
 		enter("playing")
-	elseif state == "over" and pressed and os.clock() - overAt > RESTART_LOCKOUT then
-		-- Mouse and touch are left to the buttons, so a click on MENU does
-		-- not also restart the run underneath it.
-		if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) and next(touches) == nil then
-			enter("ready")
-		end
+	elseif state == "over" and rawPress and os.clock() - overAt > RESTART_LOCKOUT then
+		enter("ready")
 	end
+	rawPress = false
 
 	if state == "playing" and run then
 		accumulator += dt

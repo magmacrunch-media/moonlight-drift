@@ -18,11 +18,44 @@ export type Character = {
 	name: string,
 	glyph: string,
 	accent: string,
+	description: string,
 	hitbox: Hitbox,
 	origin: Point,
 	thrust: number,
 	gravity: number,
 	maxVelocity: number,
+}
+
+-- What each pilot flies like, from the `description` fields in
+-- web/js/character-balance.js, which the website's character modal shows.
+-- beava has no entry there and takes getCharacterPhysics()'s fallback, whose
+-- physics are the ones its roster row already carries.
+-- stylua: ignore
+local DESCRIPTIONS: { [string]: string } = {
+	["cat-synth"] = "Wide profile but smaller overall - stable and responsive",
+	["beava"] = "Standard physics",
+	["vinny-bobarino"] = "Well-balanced square hitbox",
+	["darius-hodgekins"] = "Default physics - well-balanced for beginners",
+	["roderick-tron"] = "Default physics - well-balanced for beginners",
+	["juanito-thompson"] = "Default physics - well-balanced for beginners",
+	["carl-spatski"] = "Large hitbox compensated by powerful thrust",
+	["dspum-balloon"] = "Balloon physics: floats more, harder to control precisely",
+	["foresters-soul"] = "Larger hitbox but enhanced speed and control",
+	["grocery-harrison"] = "Compact and well-balanced, standard controls",
+	["didgeridoo-man"] = "Very wide but powerful thrust and floaty feel",
+	["mountain-gnome"] = "Transcendent meditation master - floaty and serene controls, taps into reservoir of cosmic energy",
+	["prince-vince"] = "Slender profile with responsive controls",
+	["dag-henderson"] = "Default physics - well-balanced for beginners",
+	["ban-daniel"] = "Close to standard size and handling",
+	["plantain-jane"] = "Standard handling and size",
+	["fire-toad"] = "Compact toad with explosive, fiery movement",
+	["backpack-man"] = "Slightly smaller than average, standard handling",
+	["tollbooth-lady"] = "Default physics - well-balanced for beginners",
+	["svfp-van"] = "Ultra-flat profile perfect for hugging bottom gaps - specialty vehicle",
+	["tardigrade"] = "Tiny and nimble! Extra agility compensates for precise hitbox",
+	["elektra"] = "Cool poetry chick with smooth, artistic controls - beatnik style",
+	["strawberto"] = "Sophisticated strawberry gentleman - refined and stable controls",
+	["carl"] = "Psychedelic pineapple with energetic, trippy physics - rides the rainbow",
 }
 
 local function c(
@@ -45,6 +78,7 @@ local function c(
 		name = name,
 		glyph = glyph,
 		accent = accent,
+		description = DESCRIPTIONS[key] or "Standard physics",
 		hitbox = table.freeze({ w = w, h = h, ox = ox, oy = oy }),
 		origin = table.freeze({ x = originX, y = originY }),
 		thrust = thrust,

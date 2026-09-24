@@ -68,4 +68,16 @@ function Theme.generate(rng: () -> number): Theme
 	}
 end
 
+-- The colour opposite a theme on the wheel, brightened until it reads against
+-- it. The milestone markers are drawn in it. From theme_complementary() in
+-- magnolia's theme.c, which is getComplementaryColor() in web/js/obstacles.js
+-- with the hue taken from the theme instead of recovered from a hex string.
+function Theme.complementary(t: Theme): RGB
+	local h = t.hue + 0.5
+	if h >= 1 then
+		h -= 1
+	end
+	return Theme.hslToRgb(h, math.min(1, t.sat * 1.3), math.clamp(t.light * 1.2, 0.5, 0.7))
+end
+
 return table.freeze(Theme)

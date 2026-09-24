@@ -150,6 +150,7 @@ test("roster has all 24 pilots with unique keys", function()
 		eq(Characters.indexOf(ch.key), i, ch.key)
 		assert(ch.thrust < 0 and ch.gravity > 0 and ch.maxVelocity > 0, ch.key .. " physics")
 		assert(ch.accent:match("^#%x%x%x%x%x%x$"), ch.key .. " accent")
+		assert(#ch.description > 0, ch.key .. " description")
 	end
 end)
 
@@ -226,6 +227,22 @@ test("generated themes stay in the source game's ranges", function()
 			end
 		end
 	end
+end)
+
+test("the complementary colour is opposite and bright", function()
+	local rng = seeded(11)
+	for _ = 1, 100 do
+		local t = Theme.generate(rng)
+		local c = Theme.complementary(t)
+		local light = (math.max(c.r, c.g, c.b) + math.min(c.r, c.g, c.b)) / 2
+		assert(light >= 0.5 - 1e-9 and light <= 0.7 + 1e-9, "lightness " .. light)
+	end
+	-- A red theme's complement is cyan: the hue moves half a turn.
+	local red = { hue = 0, sat = 1, light = 0.5, primary = Theme.hslToRgb(0, 1, 0.5), secondary = Theme.hslToRgb(0, 1, 0.5), accent = Theme.hslToRgb(0, 1, 0.5) }
+	local c = Theme.complementary(red)
+	near(c.r, 0.2, "red channel")
+	near(c.g, 1, "green channel")
+	near(c.b, 1, "blue channel")
 end)
 
 ------------------------------------------------------------------------------
